@@ -1,0 +1,191 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ───────────── Design tokens ─────────────
+   Limited palette: neutrals carry the UI; colour is reserved for brand CTAs,
+   success, danger, hints and player identity. */
+:root {
+  --bg: #f3f1ec;
+  --bg-glow: rgba(107, 77, 255, 0.10);
+  --surface: #ffffff;
+  --surface-2: #f6f4ef;
+  --surface-3: #ebe7df;
+  --border: #e2ddd3;
+  --border-strong: #cfc8bb;
+  --ink: #17162a;
+  --ink-2: #3a3850;
+  --muted: #6c6979;
+
+  --brand: #6b4dff;
+  --brand-deep: #4b2fd6;
+  --brand-soft: rgba(107, 77, 255, 0.12);
+  --brand-ink: #ffffff;
+
+  --success: #0f9f6e;
+  --success-deep: #0b7a54;
+  --success-soft: rgba(15, 159, 110, 0.12);
+  --danger: #dc3d4b;
+  --danger-soft: rgba(220, 61, 75, 0.10);
+  --hint: #c98500;
+  --hint-bright: #f5b51a;
+  --hint-soft: rgba(245, 181, 26, 0.16);
+
+  --tile: #ffffff;
+  --tile-hidden: #ece8e0;
+  --tile-border: #ddd7cb;
+
+  --shadow-card: 0 1px 0 rgba(255, 255, 255, 0.7) inset, 0 1px 2px rgba(23, 22, 42, 0.06), 0 12px 32px -18px rgba(23, 22, 42, 0.25);
+  --shadow-pop: 0 20px 50px -20px rgba(23, 22, 42, 0.35);
+  color-scheme: light;
+}
+
+.dark {
+  --bg: #0c0c16;
+  --bg-glow: rgba(124, 92, 255, 0.16);
+  --surface: #151525;
+  --surface-2: #1b1b2e;
+  --surface-3: #24243a;
+  --border: #26263c;
+  --border-strong: #35354f;
+  --ink: #f3f2fb;
+  --ink-2: #cfcde3;
+  --muted: #9895b3;
+
+  --brand: #8669ff;
+  --brand-deep: #5a3ee0;
+  --brand-soft: rgba(134, 105, 255, 0.16);
+  --brand-ink: #ffffff;
+
+  --success: #2fd39b;
+  --success-deep: #17a274;
+  --success-soft: rgba(47, 211, 155, 0.14);
+  --danger: #ff6670;
+  --danger-soft: rgba(255, 102, 112, 0.13);
+  --hint: #ffc247;
+  --hint-bright: #ffc247;
+  --hint-soft: rgba(255, 194, 71, 0.14);
+
+  --tile: #23233a;
+  --tile-hidden: #1a1a2c;
+  --tile-border: #303049;
+
+  --shadow-card: 0 1px 0 rgba(255, 255, 255, 0.04) inset, 0 16px 40px -24px rgba(0, 0, 0, 0.8);
+  --shadow-pop: 0 30px 60px -20px rgba(0, 0, 0, 0.7);
+  color-scheme: dark;
+}
+
+@theme inline {
+  --font-sans: var(--font-body), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-display-face), var(--font-body), ui-rounded, system-ui, sans-serif;
+
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-muted: var(--muted);
+  --color-brand: var(--brand);
+  --color-brand-deep: var(--brand-deep);
+  --color-brand-soft: var(--brand-soft);
+  --color-brand-ink: var(--brand-ink);
+  --color-success: var(--success);
+  --color-success-deep: var(--success-deep);
+  --color-success-soft: var(--success-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-hint: var(--hint);
+  --color-hint-bright: var(--hint-bright);
+  --color-hint-soft: var(--hint-soft);
+  --color-tile: var(--tile);
+  --color-tile-hidden: var(--tile-hidden);
+  --color-tile-border: var(--tile-border);
+
+  --shadow-card: var(--shadow-card);
+  --shadow-pop: var(--shadow-pop);
+
+  --radius-card: 1.25rem;
+}
+
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+    text-size-adjust: 100%;
+  }
+  body {
+    background-color: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    min-height: 100dvh;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+  /* Soft brand glow + faint dot grid — atmosphere without noise. */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background:
+      radial-gradient(60rem 30rem at 50% -10rem, var(--bg-glow), transparent 70%),
+      radial-gradient(circle at 1px 1px, color-mix(in oklab, var(--ink) 7%, transparent) 1px, transparent 0) 0 0 / 22px 22px;
+    mask-image: linear-gradient(to bottom, black, transparent 85%);
+  }
+  :focus-visible {
+    outline: 3px solid var(--brand);
+    outline-offset: 2px;
+    border-radius: 0.5rem;
+  }
+  ::selection {
+    background: var(--brand-soft);
+  }
+  button,
+  [role="button"] {
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+  button:disabled {
+    cursor: not-allowed;
+  }
+}
+
+@layer utilities {
+  .font-display {
+    font-family: var(--font-display);
+    letter-spacing: -0.01em;
+  }
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+  .safe-bottom {
+    padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+  }
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+html.reduce-motion *,
+html.reduce-motion *::before,
+html.reduce-motion *::after {
+  animation-duration: 0.01ms !important;
+  transition-duration: 0.01ms !important;
+}
