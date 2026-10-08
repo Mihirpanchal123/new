@@ -108,6 +108,21 @@ export interface HintAckData {
   exhausted: boolean;
 }
 
+/**
+ * WebRTC signaling for opt-in voice chat. The server only relays these
+ * between the two players in a room; audio flows peer-to-peer.
+ */
+export type VoiceSignal =
+  /** I'm in voice. `reply` marks an answer to the peer's join, so it isn't echoed back. */
+  | { type: "join"; reply: boolean; muted: boolean }
+  | { type: "leave" }
+  | { type: "mute"; muted: boolean }
+  | { type: "description"; description: { type: "offer" | "answer" | "pranswer" | "rollback"; sdp?: string } }
+  | {
+      type: "candidate";
+      candidate: { candidate: string; sdpMid?: string | null; sdpMLineIndex?: number | null; usernameFragment?: string | null };
+    };
+
 export interface ClientToServerEvents {
   "room:create": (payload: { settings?: GameSettings }, ack: Ack<{ code: string }>) => void;
   /** Host only, in the lobby. */
@@ -132,6 +147,8 @@ export interface ClientToServerEvents {
   "rematch:respond": (payload: { code: string; accept: boolean }, ack: Ack) => void;
   "rematch:cancel": (payload: { code: string }, ack: Ack) => void;
   "clock:ping": (payload: { clientSentAt: number }, ack: (res: { serverNow: number; clientSentAt: number }) => void) => void;
+  /** Fire-and-forget; relayed to the other player if they're watching the room. */
+  "voice:signal": (payload: { code: string; signal: VoiceSignal }) => void;
 }
 
 export interface ServerToClientEvents {
@@ -139,6 +156,7 @@ export interface ServerToClientEvents {
   "game:event": (envelope: GameEventEnvelope) => void;
   /** Another tab/device took over this player's session. */
   "session:replaced": () => void;
+  "voice:signal": (payload: { code: string; from: string; signal: VoiceSignal }) => void;
 }
 
 export interface SocketData {

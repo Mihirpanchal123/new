@@ -69,4 +69,33 @@ export const payloadSchemas = {
     actionId,
   }),
   rematchRespond: z.object({ code: roomCodeSchema, accept: z.boolean() }),
+  voiceSignal: z.object({
+    code: roomCodeSchema,
+    signal: z.discriminatedUnion("type", [
+      z.object({ type: z.literal("join"), reply: z.boolean(), muted: z.boolean() }).strict(),
+      z.object({ type: z.literal("leave") }).strict(),
+      z.object({ type: z.literal("mute"), muted: z.boolean() }).strict(),
+      z
+        .object({
+          type: z.literal("description"),
+          description: z
+            .object({ type: z.enum(["offer", "answer", "pranswer", "rollback"]), sdp: z.string().max(20_000).optional() })
+            .strict(),
+        })
+        .strict(),
+      z
+        .object({
+          type: z.literal("candidate"),
+          candidate: z
+            .object({
+              candidate: z.string().max(1_000),
+              sdpMid: z.string().max(64).nullable().optional(),
+              sdpMLineIndex: z.number().int().min(0).max(64).nullable().optional(),
+              usernameFragment: z.string().max(256).nullable().optional(),
+            })
+            .strict(),
+        })
+        .strict(),
+    ]),
+  }),
 } as const;

@@ -11,6 +11,7 @@ import { GuessBar, onlineGuessActions } from "./guess-bar";
 import { useGameEvents } from "./hooks/use-game-events";
 import { PlayerHeader } from "./player-header";
 import { RoundIndicator, Timer } from "./timer";
+import { VoiceControl } from "./voice-control";
 import { WordChain, type Celebration } from "./word-chain";
 
 type View = "theirs" | "mine";
@@ -95,7 +96,10 @@ export function GameBoard({ room }: { room: RoomView }) {
       <header className="flex flex-col gap-3 px-4 pt-3 sm:px-6 sm:pt-5">
         <div className="flex items-center justify-between">
           <span className="text-xs font-extrabold uppercase tracking-[0.2em] text-muted">Duel · {room.code}</span>
-          <ConnectionIndicator />
+          <div className="flex items-center gap-1.5">
+            <VoiceControl opponentName={opponent.displayName} />
+            <ConnectionIndicator />
+          </div>
         </div>
         <PlayerHeader me={me} opponent={opponent} scores={match.scores} activeId={turn?.guesserId ?? null} />
         <div className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-surface/70 px-3 py-2 backdrop-blur">

@@ -314,6 +314,19 @@ export function attachRealtime(io: GameServer, c: Container) {
       }),
     );
 
+    socket.on(
+      "voice:signal",
+      handle(payloadSchemas.voiceSignal, "voice", ({ code, signal }) => {
+        if (!socket.data.watching.has(code)) throw new GameError("NOT_IN_ROOM");
+        const room = rooms.getRoom(code);
+        if (!room.players.some((p) => p.id === playerId && !p.left)) throw new GameError("NOT_IN_ROOM");
+        const peer = room.players.find((p) => p.id !== playerId && !p.left);
+        const peerSocket = peer && current.get(peer.id);
+        if (peerSocket?.data.watching.has(code)) peerSocket.emit("voice:signal", { code, from: playerId, signal });
+        return null;
+      }),
+    );
+
     socket.on("disconnect", () => {
       // A replaced socket must not mark the player offline.
       if (current.get(playerId) !== socket) return;

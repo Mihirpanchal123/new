@@ -9,6 +9,7 @@ import { command } from "@/lib/realtime/client";
 import { selectMe, selectOpponent } from "@/stores/game-store";
 import type { RoomView } from "@/types/game";
 import { ConnectionIndicator } from "../game/connection-indicator";
+import { VoiceControl } from "../game/voice-control";
 import { PlayerAvatar } from "../player/player-avatar";
 import { Button } from "../ui/button";
 import { ChainEditor, emptyChain } from "./chain-editor";
@@ -66,7 +67,10 @@ export function ChainSetup({ room }: { room: RoomView }) {
     <div className="mx-auto flex min-h-dvh w-full max-w-xl flex-col px-4 sm:px-6">
       <div className="flex h-16 items-center justify-between">
         <span className="text-xs font-extrabold uppercase tracking-[0.2em] text-muted">Duel · {room.code}</span>
-        <ConnectionIndicator />
+        <div className="flex items-center gap-1.5">
+          <VoiceControl opponentName={opponent?.displayName} />
+          <ConnectionIndicator />
+        </div>
       </div>
 
       <div className="flex flex-1 flex-col gap-5 pb-6">

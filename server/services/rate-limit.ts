@@ -16,6 +16,8 @@ export const RATE_RULES = {
   profile: { capacity: 20, refillPerSec: 20 / 60 },
   session: { capacity: 30, refillPerSec: 30 / 60 },
   general: { capacity: 40, refillPerSec: 10 },
+  // ICE candidates arrive in bursts while a call is being set up.
+  voice: { capacity: 60, refillPerSec: 10 },
 } satisfies Record<string, RateRule>;
 
 export type RateAction = keyof typeof RATE_RULES;

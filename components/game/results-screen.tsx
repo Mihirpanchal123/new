@@ -18,6 +18,7 @@ import { PlayerAvatar } from "../player/player-avatar";
 import { Button } from "../ui/button";
 import { Card } from "../ui/primitives";
 import { ScoreDisplay } from "./player-header";
+import { VoiceControl } from "./voice-control";
 
 type Outcome = "win" | "loss" | "draw";
 
@@ -121,6 +122,12 @@ export function ResultsScreen({ room }: { room: RoomView }) {
   return (
     <div className="relative mx-auto flex min-h-dvh w-full max-w-2xl flex-col px-4 pb-8 pt-8 sm:px-6 [&>*:not(:first-child)]:relative [&>*:not(:first-child)]:z-10">
       {outcome === "win" && <Confetti seed={match.number} />}
+
+      {!opponentGone && (
+        <div className="mb-2 flex justify-end">
+          <VoiceControl opponentName={opponent.displayName} />
+        </div>
+      )}
 
       <motion.div
         initial={{ scale: 0.7, opacity: 0 }}

@@ -12,6 +12,7 @@ import { selectMe, selectOpponent } from "@/stores/game-store";
 import { useUiStore } from "@/stores/ui-store";
 import type { PlayerView, RoomView } from "@/types/game";
 import { ConnectionIndicator } from "../game/connection-indicator";
+import { VoiceControl } from "../game/voice-control";
 import { PlayerAvatar } from "../player/player-avatar";
 import { Button } from "../ui/button";
 import { Badge, Card } from "../ui/primitives";
@@ -89,7 +90,10 @@ export function Lobby({ room }: { room: RoomView }) {
         <Button variant="ghost" size="sm" onClick={leave} loading={pending === "leave"}>
           <ArrowLeft className="size-4" aria-hidden /> Leave
         </Button>
-        <ConnectionIndicator />
+        <div className="flex items-center gap-1.5">
+          {opponent && <VoiceControl opponentName={opponent.displayName} />}
+          <ConnectionIndicator />
+        </div>
       </div>
 
       <div className="flex flex-1 flex-col gap-6 pb-6">

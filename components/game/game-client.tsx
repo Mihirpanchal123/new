@@ -12,6 +12,7 @@ import { GameFailure, GameSkeleton } from "./game-failure";
 import { useGameEvents } from "./hooks/use-game-events";
 import { useGameFeedback } from "./hooks/use-game-feedback";
 import { useRoomConnection } from "./hooks/use-room-connection";
+import { useVoiceChat } from "./hooks/use-voice-chat";
 import { RematchDialog } from "./rematch-dialog";
 import { ResultsScreen } from "./results-screen";
 
@@ -24,6 +25,7 @@ export function GameClient({ code }: { code: string }) {
   useGameFeedback();
   const room = useGameStore((s) => s.room);
   const failure = useGameStore((s) => s.failure);
+  useVoiceChat(code, room?.code === code ? room.meId : null);
   const [flash, setFlash] = useState<number | null>(null);
 
   useGameEvents((e) => {

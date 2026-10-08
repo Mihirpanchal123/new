@@ -224,3 +224,44 @@ describe("realtime: game settings", () => {
     expect(latest(a).match!.turn!.endsAt).not.toBeNull();
   });
 });
+
+describe("realtime: voice signaling", () => {
+  /** voice:signal is fire-and-forget for clients, but the server still acks when asked — handy for asserting rejections. */
+  const signal = (c: TestClient, payload: unknown) =>
+    (c as unknown as { emitWithAck: (e: string, p: unknown) => Promise<{ ok: boolean; error?: string }> }).emitWithAck(
+      "voice:signal",
+      payload,
+    );
+
+  it("relays signals to the opponent only, tagged with the sender", async () => {
+    const a = await server.client();
+    const b = await server.client();
+    const c = await server.client();
+    const { data } = (await a.emitWithAck("room:create", {})) as { data: { code: string } };
+    await a.emitWithAck("room:join", { code: data.code });
+    await b.emitWithAck("room:join", { code: data.code });
+
+    const received: unknown[] = [];
+    const leaked: unknown[] = [];
+    b.on("voice:signal", (p) => received.push(p));
+    c.on("voice:signal", (p) => leaked.push(p));
+
+    const res = await signal(a, { code: data.code, signal: { type: "join", reply: false, muted: false } });
+    expect(res.ok).toBe(true);
+    await waitFor(() => received.length === 1);
+    expect(received[0]).toEqual({ code: data.code, from: a.playerId, signal: { type: "join", reply: false, muted: false } });
+
+    // Not in the room → rejected and nothing relayed.
+    const outsider = await signal(c, { code: data.code, signal: { type: "leave" } });
+    expect(outsider).toMatchObject({ ok: false, error: "NOT_IN_ROOM" });
+    expect(leaked).toHaveLength(0);
+  });
+
+  it("rejects malformed signals", async () => {
+    const a = await server.client();
+    const { data } = (await a.emitWithAck("room:create", {})) as { data: { code: string } };
+    await a.emitWithAck("room:join", { code: data.code });
+    const res = await signal(a, { code: data.code, signal: { type: "description", description: { type: "offer", sdp: "x".repeat(50_000) } } });
+    expect(res).toMatchObject({ ok: false, error: "INVALID_INPUT" });
+  });
+});
