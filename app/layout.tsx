@@ -16,20 +16,20 @@ export const metadata: Metadata = {
     template: "%s · Word Duel",
   },
   description:
-    "A fast, social word game for two. Build a chain of 5 connected words, then race to crack your opponent's chain one letter at a time.",
+    "A fast, social word game for two. Build a chain of connected words, then race to crack your opponent's chain one letter at a time.",
   applicationName: "Word Duel",
   keywords: ["word game", "multiplayer", "party game", "word chain", "guessing game"],
   openGraph: {
     type: "website",
     siteName: "Word Duel",
     title: "Word Duel — Think alike. Guess faster.",
-    description: "Build a chain of 5 connected words. Crack your friend's chain before they crack yours.",
+    description: "Build a chain of connected words. Crack your friend's chain before they crack yours.",
     url: "/",
   },
   twitter: {
     card: "summary_large_image",
     title: "Word Duel — Think alike. Guess faster.",
-    description: "Build a chain of 5 connected words. Crack your friend's chain before they crack yours.",
+    description: "Build a chain of connected words. Crack your friend's chain before they crack yours.",
   },
   appleWebApp: { capable: true, title: "Word Duel", statusBarStyle: "black-translucent" },
   formatDetection: { telephone: false },

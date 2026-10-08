@@ -4,6 +4,7 @@
  * Serialization lives in server/game/serialize.ts.
  */
 import type { AchievementId } from "@/constants/achievements";
+import type { GameSettings } from "@/constants/game";
 import type { AvatarColor, AvatarId } from "@/constants/profile";
 
 export type RoomPhase =
@@ -65,7 +66,8 @@ export interface TurnView {
   position: number;
   phase: TurnPhase;
   startedAt: number;
-  endsAt: number;
+  /** null = untimed turn. */
+  endsAt: number | null;
   resultEndsAt: number | null;
   outcome: TurnOutcome | null;
   /** Wrong guesses made this turn (visible to both players — makes spectating fun). */
@@ -93,6 +95,7 @@ export interface MatchResultView {
 export interface MatchView {
   id: string;
   number: number;
+  settings: GameSettings;
   totalRounds: number;
   firstPlayerId: string;
   turn: TurnView | null;
@@ -118,7 +121,8 @@ export interface RoomView {
   myChain: string[] | null;
   match: MatchView | null;
   rematch: { requestedBy: string } | null;
-  turnDurationMs: number;
+  /** The lobby's current settings (a match carries its own frozen copy). */
+  settings: GameSettings;
   countdownDurationMs: number;
   closedReason: string | null;
 }
@@ -170,6 +174,8 @@ export interface MatchRecord {
   durationMs: number;
   endReason: EndReason;
   winnerId: string | null;
+  /** Absent on records saved before settings existed (5 words, 30s turns). */
+  settings?: GameSettings;
   players: [MatchRecordPlayer, MatchRecordPlayer];
 }
 

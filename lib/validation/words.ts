@@ -1,5 +1,4 @@
 import {
-  CHAIN_LENGTH,
   GUESS_MAX_LENGTH,
   WORD_MAX_LENGTH,
   WORD_MIN_LENGTH,
@@ -46,8 +45,9 @@ export interface ChainCheck {
   valid: boolean;
 }
 
-export function checkChain(rawWords: readonly string[]): ChainCheck {
-  const words = Array.from({ length: CHAIN_LENGTH }, (_, i) => normalizeWord(rawWords[i] ?? ""));
+/** Checks exactly `length` words (missing entries count as empty). */
+export function checkChain(rawWords: readonly string[], length: number = rawWords.length): ChainCheck {
+  const words = Array.from({ length }, (_, i) => normalizeWord(rawWords[i] ?? ""));
   const seen = new Set<string>();
   const issues = words.map((w) => {
     const issue = checkWord(w);

@@ -1,5 +1,5 @@
 import { randomInt } from "node:crypto";
-import { ROOM_CODE_ALPHABET, ROOM_CODE_LENGTH, ROOM_TTL } from "@/constants/game";
+import { type GameSettings, ROOM_CODE_ALPHABET, ROOM_CODE_LENGTH, ROOM_TTL } from "@/constants/game";
 import type { Analytics } from "@/lib/analytics";
 import type { PublicProfile, RoomPhase } from "@/types/game";
 import type { GameEvent } from "@/types/realtime";
@@ -63,9 +63,9 @@ export class RoomManager {
 
   // ───────────── lookup ─────────────
 
-  createRoom(host: PublicProfile): ServerRoom {
+  createRoom(host: PublicProfile, settings?: GameSettings): ServerRoom {
     const code = this.generateCode();
-    const room = this.engine.createGame(code, host, this.now());
+    const room = this.engine.createGame(code, host, this.now(), settings);
     this.rooms.set(code, room);
     this.analytics.track("game_created", { code });
     this.logger.info("rooms", `room ${code} created`, { host: host.id });

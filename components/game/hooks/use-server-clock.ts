@@ -1,6 +1,6 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { createContext, useContext, useSyncExternalStore } from "react";
 import { useGameStore } from "@/stores/game-store";
 
 /**
@@ -39,11 +39,19 @@ export function useNow(): number {
 }
 
 /**
+ * Overrides the server clock offset for everything below it. One-screen games
+ * run on this device's clock, so they provide 0.
+ */
+export const ClockOffsetContext = createContext<number | null>(null);
+
+/**
  * Milliseconds until `endsAt` on the SERVER's clock. Display only — the
  * server decides when time is actually up.
  */
 export function useCountdown(endsAt: number | null | undefined): number {
-  const offset = useGameStore((s) => s.clockOffset);
+  const storeOffset = useGameStore((s) => s.clockOffset);
+  const override = useContext(ClockOffsetContext);
+  const offset = override ?? storeOffset;
   const now = useNow();
   if (!endsAt || !now) return 0;
   return Math.max(0, endsAt - (now + offset));

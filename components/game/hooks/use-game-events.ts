@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { gameEvents } from "@/lib/realtime/client";
+import { gameEvents } from "@/lib/realtime/events";
 import type { GameEvent } from "@/types/realtime";
 
 /** Subscribe to transient game events. The handler can change freely between renders. */

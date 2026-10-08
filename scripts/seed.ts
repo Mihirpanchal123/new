@@ -82,7 +82,7 @@ for (let i = 0; i < 24; i++) {
       if (rand() > skill) engine.submitGuess(room, turn.guesserId, { turnId: turn.id, guess: "nope" }, t);
       engine.submitGuess(room, turn.guesserId, { turnId: turn.id, guess: answer }, t + 500);
     } else {
-      engine.tick(room, turn.endsAt + DEFAULT_TIMINGS.latencyGraceMs + 1);
+      engine.tick(room, turn.endsAt! + DEFAULT_TIMINGS.latencyGraceMs + 1);
     }
     engine.tick(room, room.match!.turn?.resultEndsAt ?? t);
   }

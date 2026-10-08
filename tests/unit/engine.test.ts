@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_TIMINGS } from "@/constants/game";
-import { TOTAL_TURNS } from "@/server/game/engine";
+import { totalTurns } from "@/server/game/engine";
 import { GameError } from "@/server/game/errors";
 import { canTransition, TRANSITIONS } from "@/server/game/state-machine";
 import { ALICE, ALICE_CHAIN, BOB, BOB_CHAIN, currentTurn, makeEngine, playingRoom } from "../helpers/engine";
@@ -82,10 +82,10 @@ describe("turns", () => {
     const order = room.match!.order;
     let t = now;
     const seen: Array<[string, number]> = [];
-    for (let i = 0; i < TOTAL_TURNS; i++) {
+    for (let i = 0; i < totalTurns(5); i++) {
       const turn = currentTurn(room);
       seen.push([turn.guesserId, turn.position]);
-      t = turn.endsAt + DEFAULT_TIMINGS.latencyGraceMs + 1;
+      t = turn.endsAt! + DEFAULT_TIMINGS.latencyGraceMs + 1;
       engine.tick(room, t); // timeout
       t = currentTurn(room)?.resultEndsAt ?? t;
       engine.tick(room, t); // next turn
@@ -127,7 +127,7 @@ describe("turns", () => {
     expectCode(() => engine.submitGuess(room, turn.ownerId, { turnId: turn.id, guess: "x" }, now), "NOT_YOUR_TURN");
     expectCode(() => engine.submitGuess(room, turn.guesserId, { turnId: turn.id + 1, guess: "abc" }, now), "STALE");
     expectCode(
-      () => engine.submitGuess(room, turn.guesserId, { turnId: turn.id, guess: "abc" }, turn.endsAt + DEFAULT_TIMINGS.latencyGraceMs + 1),
+      () => engine.submitGuess(room, turn.guesserId, { turnId: turn.id, guess: "abc" }, turn.endsAt! + DEFAULT_TIMINGS.latencyGraceMs + 1),
       "TURN_EXPIRED",
     );
   });
@@ -136,7 +136,7 @@ describe("turns", () => {
     const { engine, room } = playingRoom();
     const turn = currentTurn(room);
     const answer = room.match!.chains[turn.ownerId]![1]!;
-    const res = engine.submitGuess(room, turn.guesserId, { turnId: turn.id, guess: answer }, turn.endsAt + 100);
+    const res = engine.submitGuess(room, turn.guesserId, { turnId: turn.id, guess: answer }, turn.endsAt! + 100);
     expect(res.data.correct).toBe(true);
   });
 
@@ -167,7 +167,7 @@ describe("turns", () => {
   it("gives 75 points for a correct guess after one hint", () => {
     const { engine, room } = playingRoom();
     const turn = currentTurn(room);
-    const late = turn.endsAt; // no speed bonus
+    const late = turn.endsAt!; // no speed bonus
     engine.requestHint(room, turn.guesserId, { turnId: turn.id, expectedRevealed: 1 }, late);
     const answer = room.match!.chains[turn.ownerId]![1]!;
     expect(engine.submitGuess(room, turn.guesserId, { turnId: turn.id, guess: answer }, late).data.points).toBe(75);
@@ -180,7 +180,7 @@ describe("completion, forfeit and rematch", () => {
     while (room.phase === "PLAYING") {
       const turn = currentTurn(room);
       const answer = room.match!.chains[turn.ownerId]![turn.position]!;
-      engine.submitGuess(room, turn.guesserId, { turnId: turn.id, guess: answer }, turn.endsAt);
+      engine.submitGuess(room, turn.guesserId, { turnId: turn.id, guess: answer }, turn.endsAt!);
       t = turn.resultEndsAt!;
       engine.tick(room, t);
     }

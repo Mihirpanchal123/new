@@ -8,7 +8,7 @@ import { getContainer } from "@/server/container";
 export const dynamic = "force-dynamic";
 
 const STEPS = [
-  { icon: Link2, title: "Build a chain", text: "Pick 5 words, each one connected to the last. COFFEE → BEAN → PLANT…" },
+  { icon: Link2, title: "Build a chain", text: "Pick 4–8 words, each one connected to the last. COFFEE → BEAN → PLANT…" },
   { icon: Eye, title: "Crack theirs", text: "You see their first word and one letter of each of the rest. Guess what comes next." },
   { icon: Lightbulb, title: "Hint or hold", text: "Stuck? Reveal a letter — it costs points. Fastest, cleanest guesser wins." },
 ];
@@ -83,7 +83,7 @@ export default async function HomePage() {
 
       {/* How it works */}
       <section className="mx-auto max-w-6xl px-4 py-12 sm:px-6" aria-labelledby="how">
-        <SectionHeading eyebrow="How it works" title={<span id="how">Three steps. Five words. One winner.</span>} />
+        <SectionHeading eyebrow="How it works" title={<span id="how">Three steps. One chain. One winner.</span>} />
         <ol className="grid gap-4 md:grid-cols-3">
           {STEPS.map((s, i) => (
             <li key={s.title}>

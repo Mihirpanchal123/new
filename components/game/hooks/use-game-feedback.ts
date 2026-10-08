@@ -2,6 +2,7 @@
 
 import { toast } from "sonner";
 import { ACHIEVEMENTS } from "@/constants/achievements";
+import { describeSettings } from "@/constants/game";
 import { haptics } from "@/lib/haptics";
 import { sound } from "@/lib/sound/sound-manager";
 import { useGameStore } from "@/stores/game-store";
@@ -29,6 +30,12 @@ export function useGameFeedback() {
         break;
       case "player.ready":
         if (event.playerId !== me && event.ready) sound.playNotification();
+        break;
+      case "settings.updated":
+        if (event.by !== me) {
+          sound.playNotification();
+          toast(`${nameOf(event.by)} changed the game: ${describeSettings(event.settings)}`, { id: "settings" });
+        }
         break;
       case "setup.start":
         sound.playGo();

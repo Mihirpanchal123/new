@@ -9,23 +9,39 @@ import { potentialPoints } from "@/lib/game/scoring";
 import { command } from "@/lib/realtime/client";
 import { cn, newActionId } from "@/lib/utils";
 import type { TurnView, WordCardView } from "@/types/game";
+import type { AckResult, GuessAckData, HintAckData } from "@/types/realtime";
 import { Button } from "../ui/button";
+
+export interface GuessActions {
+  guess(turnId: number, guess: string): Promise<AckResult<GuessAckData>>;
+  hint(turnId: number, expectedRevealed: number): Promise<AckResult<HintAckData>>;
+}
+
+export function onlineGuessActions(code: string): GuessActions {
+  return {
+    guess: (turnId, guess) => command("guess:submit", { code, turnId, guess, actionId: newActionId() }),
+    hint: (turnId, expectedRevealed) => command("hint:request", { code, turnId, expectedRevealed, actionId: newActionId() }),
+  };
+}
 
 type Feedback = { tone: "danger" | "success" | "hint" | "muted"; text: string; key: number } | null;
 
 /** GuessInput + HintButton, as one sticky, thumb-friendly action bar. */
 export function GuessBar({
-  code,
+  actions,
   turn,
   card,
   isMyTurn,
   opponentName,
+  guesserName,
 }: {
-  code: string;
+  actions: GuessActions;
   turn: TurnView | null;
   card: WordCardView | null;
   isMyTurn: boolean;
   opponentName: string;
+  /** One-screen games: whose turn it is, shown as the input placeholder. */
+  guesserName?: string;
 }) {
   const [value, setValue] = useState("");
   const [pending, setPending] = useState<"guess" | "hint" | null>(null);
@@ -76,7 +92,7 @@ export function GuessBar({
       return;
     }
     setPending("guess");
-    const res = await command("guess:submit", { code, turnId: turn.id, guess, actionId: newActionId() });
+    const res = await actions.guess(turn.id, guess);
     setPending(null);
     if (res.ok) {
       if (res.data.correct) {
@@ -102,12 +118,7 @@ export function GuessBar({
     }
     setConfirmReveal(false);
     setPending("hint");
-    const res = await command("hint:request", {
-      code,
-      turnId: turn.id,
-      expectedRevealed: card.revealedCount,
-      actionId: newActionId(),
-    });
+    const res = await actions.hint(turn.id, card.revealedCount);
     setPending(null);
     if (res.ok) {
       say("hint", res.data.exhausted ? "Word revealed — 0 pts" : `Hint used · −${SCORING.hintPenalty}`);
@@ -183,7 +194,7 @@ export function GuessBar({
             value={value}
             onChange={(e) => setValue(e.target.value.replace(/[^a-zA-Z]/g, "").slice(0, GUESS_MAX_LENGTH))}
             disabled={!guessing}
-            placeholder={guessing ? "Type your guess…" : "…"}
+            placeholder={guessing ? (guesserName ? `${guesserName}, type your guess…` : "Type your guess…") : "…"}
             autoComplete="off"
             autoCorrect="off"
             autoCapitalize="characters"

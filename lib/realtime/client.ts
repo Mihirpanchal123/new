@@ -1,7 +1,7 @@
 "use client";
 
 import { io, type Socket } from "socket.io-client";
-import type { AckResult, ClientToServerEvents, GameEventEnvelope, ServerToClientEvents } from "@/types/realtime";
+import type { AckResult, ClientToServerEvents, ServerToClientEvents } from "@/types/realtime";
 
 export type GameSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 
@@ -59,19 +59,4 @@ export async function command<E extends EventName>(
   }
 }
 
-// ───────────── transient event bus (sounds, animations, toasts) ─────────────
-
-type Listener = (envelope: GameEventEnvelope) => void;
-const listeners = new Set<Listener>();
-
-export const gameEvents = {
-  on(fn: Listener) {
-    listeners.add(fn);
-    return () => {
-      listeners.delete(fn);
-    };
-  },
-  emit(envelope: GameEventEnvelope) {
-    for (const fn of listeners) fn(envelope);
-  },
-};
+export { gameEvents } from "./events";

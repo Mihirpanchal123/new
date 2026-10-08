@@ -38,6 +38,7 @@ export function buildMatchRecord(room: ServerRoom): MatchRecord | null {
     durationMs: match.completedAt - match.startedAt,
     endReason: match.result.endReason,
     winnerId: match.result.winnerId,
+    settings: { ...match.settings },
     players,
   };
 }

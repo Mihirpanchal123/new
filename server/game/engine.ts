@@ -1,5 +1,4 @@
-import { randomUUID } from "node:crypto";
-import { HIDDEN_WORDS, MAX_PLAYERS, type Timings } from "@/constants/game";
+import { DEFAULT_CHAIN_LENGTH, type GameSettings, MAX_PLAYERS, roundsFor, type Timings } from "@/constants/game";
 import type { ScoringConfig } from "@/constants/scoring";
 import { calculateScore } from "@/lib/game/scoring";
 import { normalizeGuess } from "@/lib/validation/words";
@@ -9,7 +8,10 @@ import { GameError } from "./errors";
 import { assertPhase, transition } from "./state-machine";
 import type { BoardWord, ServerMatch, ServerPlayer, ServerRoom, ServerTurn } from "./types";
 
-export const TOTAL_TURNS = HIDDEN_WORDS * MAX_PLAYERS;
+/** Each player guesses every hidden word of the other's chain once. */
+export const totalTurns = (chainLength: number) => roundsFor(chainLength) * MAX_PLAYERS;
+
+const defaultId = () => globalThis.crypto.randomUUID();
 
 export interface EngineOptions {
   timings: Timings;
@@ -36,12 +38,16 @@ export class GameEngine {
   constructor(opts: EngineOptions) {
     this.timings = opts.timings;
     this.scoring = opts.scoring;
-    this.newId = opts.idFactory ?? randomUUID;
+    this.newId = opts.idFactory ?? defaultId;
+  }
+
+  defaultSettings(): GameSettings {
+    return { chainLength: DEFAULT_CHAIN_LENGTH, turnMs: this.timings.turnMs };
   }
 
   // ───────────────────────────── Rooms ─────────────────────────────
 
-  createGame(code: string, host: PublicProfile, now: number): ServerRoom {
+  createGame(code: string, host: PublicProfile, now: number, settings?: GameSettings): ServerRoom {
     return {
       id: this.newId(),
       code,
@@ -50,6 +56,7 @@ export class GameEngine {
       version: 1,
       phase: "LOBBY",
       hostId: host.id,
+      settings: { ...(settings ?? this.defaultSettings()) },
       players: [newPlayer(host, now)],
       countdownEndsAt: null,
       match: null,
@@ -144,6 +151,17 @@ export class GameEngine {
 
   // ───────────────────────────── Lobby & setup ─────────────────────────────
 
+  /** Host-only, lobby-only. Un-readies everyone so both players agree to the new rules. */
+  updateSettings(room: ServerRoom, playerId: string, settings: GameSettings): GameEvent[] {
+    assertPhase(room, "LOBBY");
+    requirePlayer(room, playerId);
+    if (room.hostId !== playerId) throw new GameError("INVALID_STATE", "Only the host can change the game settings.");
+    if (room.settings.chainLength === settings.chainLength && room.settings.turnMs === settings.turnMs) return [];
+    room.settings = { chainLength: settings.chainLength, turnMs: settings.turnMs };
+    for (const p of room.players) p.ready = false;
+    return [{ type: "settings.updated", settings: { ...room.settings }, by: playerId }];
+  }
+
   setPlayerReady(room: ServerRoom, playerId: string, ready: boolean, now: number): GameEvent[] {
     assertPhase(room, "LOBBY");
     const player = requirePlayer(room, playerId);
@@ -173,6 +191,9 @@ export class GameEngine {
     assertPhase(room, "SETUP");
     const player = requirePlayer(room, playerId);
     if (player.chain) throw new GameError("INVALID_STATE", "Your chain is already locked in.");
+    if (words.length !== room.settings.chainLength) {
+      throw new GameError("INVALID_CHAIN", `This game uses ${room.settings.chainLength} words per chain.`);
+    }
     player.chain = [...words];
     const events: GameEvent[] = [{ type: "chain.submitted", playerId }];
 
@@ -206,6 +227,7 @@ export class GameEngine {
     room.match = {
       id: this.newId(),
       number: room.matchCount,
+      settings: { ...room.settings },
       startedAt: now,
       completedAt: null,
       order,
@@ -246,7 +268,7 @@ export class GameEngine {
       position,
       phase: "GUESSING",
       startedAt: now,
-      endsAt: now + this.timings.turnMs,
+      endsAt: match.settings.turnMs === null ? null : now + match.settings.turnMs,
       resultEndsAt: null,
       outcome: null,
       recentGuesses: [],
@@ -261,7 +283,7 @@ export class GameEngine {
     const turn = match.turn;
     if (!turn || turn.guesserId !== playerId) throw new GameError("NOT_YOUR_TURN");
     if (turn.id !== turnId || turn.phase !== "GUESSING") throw new GameError("STALE");
-    if (now > turn.endsAt + this.timings.latencyGraceMs) throw new GameError("TURN_EXPIRED");
+    if (turn.endsAt !== null && now > turn.endsAt + this.timings.latencyGraceMs) throw new GameError("TURN_EXPIRED");
     return { match, turn, word: boardWord(match, playerId, turn.position) };
   }
 
@@ -276,9 +298,14 @@ export class GameEngine {
     if (!guess) throw new GameError("INVALID_INPUT", "Letters only, please.");
 
     if (guess === word.answer) {
-      const elapsedMs = Math.min(now - turn.startedAt, this.timings.turnMs);
+      // Untimed games have no speed bonus (turnMs 0).
       const { total } = calculateScore(
-        { hintsUsed: word.hints, wrongGuesses: word.wrong, elapsedMs, turnMs: this.timings.turnMs },
+        {
+          hintsUsed: word.hints,
+          wrongGuesses: word.wrong,
+          elapsedMs: turnTime(match, turn, now),
+          turnMs: match.settings.turnMs ?? 0,
+        },
         this.scoring,
       );
       const events: GameEvent[] = [
@@ -361,7 +388,7 @@ export class GameEngine {
     word.outcome = outcome;
     word.revealed = word.answer.length;
     word.points = points;
-    word.timeMs = Math.min(now - turn.startedAt, this.timings.turnMs);
+    word.timeMs = turnTime(match, turn, now);
 
     turn.phase = "RESULT";
     turn.outcome = outcome;
@@ -393,7 +420,7 @@ export class GameEngine {
     const turn = match.turn;
     if (!turn || turn.phase !== "RESULT") return [];
     const next = turn.index + 1;
-    if (next >= TOTAL_TURNS) return this.completeGame(room, now, "COMPLETED");
+    if (next >= totalTurns(match.settings.chainLength)) return this.completeGame(room, now, "COMPLETED");
     return this.startTurn(room, next, now);
   }
 
@@ -414,7 +441,7 @@ export class GameEngine {
       w.status = "FAILED";
       w.outcome = "TIMEOUT";
       w.revealed = w.answer.length;
-      w.timeMs = Math.min(now - match.turn.startedAt, this.timings.turnMs);
+      w.timeMs = turnTime(match, match.turn, now);
     }
     match.turn = null;
 
@@ -499,7 +526,8 @@ export class GameEngine {
     if (room.phase === "COUNTDOWN" && room.countdownEndsAt) deadlines.push(room.countdownEndsAt);
     const turn = room.match?.turn;
     if (room.phase === "PLAYING" && turn) {
-      deadlines.push(turn.phase === "GUESSING" ? turn.endsAt + this.timings.latencyGraceMs : turn.resultEndsAt!);
+      if (turn.phase === "GUESSING" && turn.endsAt !== null) deadlines.push(turn.endsAt + this.timings.latencyGraceMs);
+      if (turn.phase === "RESULT" && turn.resultEndsAt !== null) deadlines.push(turn.resultEndsAt);
     }
     if (room.phase !== "COMPLETE" && room.phase !== "CLOSED") {
       for (const p of room.players) {
@@ -538,7 +566,7 @@ export class GameEngine {
 
     const turn = room.match?.turn;
     if (room.phase === "PLAYING" && turn) {
-      if (turn.phase === "GUESSING" && now > turn.endsAt + this.timings.latencyGraceMs) {
+      if (turn.phase === "GUESSING" && turn.endsAt !== null && now > turn.endsAt + this.timings.latencyGraceMs) {
         return this.handleTimeout(room, now);
       }
       if (turn.phase === "RESULT" && turn.resultEndsAt !== null && now >= turn.resultEndsAt) {
@@ -586,6 +614,12 @@ function newPlayer(profile: PublicProfile, now: number): ServerPlayer {
 
 export function toPublic(p: PublicProfile): PublicProfile {
   return { id: p.id, displayName: p.displayName, avatar: p.avatar, color: p.color };
+}
+
+/** Time spent on a turn, capped at the turn length when timed. */
+function turnTime(match: ServerMatch, turn: ServerTurn, now: number): number {
+  const elapsed = Math.max(0, now - turn.startedAt);
+  return match.settings.turnMs === null ? elapsed : Math.min(elapsed, match.settings.turnMs);
 }
 
 function buildBoard(chain: string[]): BoardWord[] {

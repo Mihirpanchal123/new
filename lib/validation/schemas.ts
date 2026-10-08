@@ -1,10 +1,13 @@
 import { z } from "zod";
 import { AVATAR_COLOR_IDS, AVATAR_IDS } from "@/constants/profile";
 import {
-  CHAIN_LENGTH,
   DISPLAY_NAME_MAX_LENGTH,
   DISPLAY_NAME_MIN_LENGTH,
   GUESS_MAX_LENGTH,
+  MAX_CHAIN_LENGTH,
+  MAX_TURN_MS,
+  MIN_CHAIN_LENGTH,
+  MIN_TURN_MS,
   ROOM_CODE_LENGTH,
   ROOM_CODE_PATTERN,
   WORD_MAX_LENGTH,
@@ -37,12 +40,21 @@ export const profileUpdateSchema = z
 
 const actionId = z.string().min(8).max(64);
 
+export const settingsSchema = z
+  .object({
+    chainLength: z.number().int().min(MIN_CHAIN_LENGTH).max(MAX_CHAIN_LENGTH),
+    turnMs: z.number().int().min(MIN_TURN_MS).max(MAX_TURN_MS).nullable(),
+  })
+  .strict();
+
 export const payloadSchemas = {
   code: z.object({ code: roomCodeSchema }),
+  create: z.object({ settings: settingsSchema.optional() }),
+  settings: z.object({ code: roomCodeSchema, settings: settingsSchema }),
   ready: z.object({ code: roomCodeSchema, ready: z.boolean() }),
   chain: z.object({
     code: roomCodeSchema,
-    words: z.array(z.string().max(WORD_MAX_LENGTH * 3)).length(CHAIN_LENGTH),
+    words: z.array(z.string().max(WORD_MAX_LENGTH * 3)).min(MIN_CHAIN_LENGTH).max(MAX_CHAIN_LENGTH),
   }),
   guess: z.object({
     code: roomCodeSchema,

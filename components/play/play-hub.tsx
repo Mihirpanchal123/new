@@ -1,6 +1,6 @@
 "use client";
 
-import { Hash, Pencil, Plus } from "lucide-react";
+import { Hash, Pencil, Plus, Smartphone } from "lucide-react";
 import { motion } from "motion/react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -25,6 +25,14 @@ const CHOICES = [
     icon: Hash,
     title: "Join game",
     text: "Got a code? Jump right in.",
+    tone: "bg-surface border-2 border-border shadow-[0_5px_0_0_var(--border)]",
+    iconTone: "bg-surface-2 text-brand",
+  },
+  {
+    href: "/local",
+    icon: Smartphone,
+    title: "One screen",
+    text: "Two players, one device. Pass and play.",
     tone: "bg-surface border-2 border-border shadow-[0_5px_0_0_var(--border)]",
     iconTone: "bg-surface-2 text-brand",
   },

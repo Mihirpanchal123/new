@@ -135,7 +135,7 @@ function DemoWin() {
 const STEPS: { title: string; text: string; demo: ReactNode }[] = [
   { title: "Create 5 connected words", text: "Each word should link to the one before it. Make it fair — but not too easy.", demo: <DemoCreate /> },
   { title: "Your opponent sees the first word", text: "Every other word shows only its first letter. They know how long it is.", demo: <DemoVisible /> },
-  { title: "Guess the hidden words", text: "Take turns. You get 30 seconds per word — wrong guesses cost a little.", demo: <DemoGuess /> },
+  { title: "Guess the hidden words", text: "Take turns. The host picks the timer (or none) — wrong guesses cost a little.", demo: <DemoGuess /> },
   { title: "Hints reveal more letters", text: "Stuck? Reveal the next letter. Each hint lowers what the word is worth.", demo: <DemoHint /> },
   { title: "Highest score wins", text: "Four words each. Fast, clean guesses win duels.", demo: <DemoWin /> },
 ];

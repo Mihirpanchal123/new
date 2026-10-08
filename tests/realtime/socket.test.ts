@@ -193,3 +193,34 @@ describe("realtime: rematch", () => {
     expect(latest(a).myChain).toBeNull();
   });
 });
+
+describe("realtime: game settings", () => {
+  it("creates with settings, lets only the host change them, and enforces chain length", async () => {
+    const a = await server.client();
+    const b = await server.client();
+    const created = await a.emitWithAck("room:create", { settings: { chainLength: 6, turnMs: null } });
+    if (!created.ok) throw new Error(created.message);
+    const code = created.data.code;
+    const joined = await a.emitWithAck("room:join", { code });
+    expect(joined.ok && joined.data.settings).toEqual({ chainLength: 6, turnMs: null });
+    await b.emitWithAck("room:join", { code });
+
+    const denied = await b.emitWithAck("room:settings", { code, settings: { chainLength: 4, turnMs: 15_000 } });
+    expect(denied).toMatchObject({ ok: false, error: "INVALID_STATE" });
+    const bad = await a.emitWithAck("room:settings", { code, settings: { chainLength: 12, turnMs: null } });
+    expect(bad).toMatchObject({ ok: false, error: "INVALID_INPUT" });
+    expect((await a.emitWithAck("room:settings", { code, settings: { chainLength: 4, turnMs: 15_000 } })).ok).toBe(true);
+    await waitFor(() => latest(b).settings.chainLength === 4);
+    expect(b.events.some((e) => e.event.type === "settings.updated")).toBe(true);
+
+    await a.emitWithAck("player:ready", { code, ready: true });
+    await b.emitWithAck("player:ready", { code, ready: true });
+    const wrong = await a.emitWithAck("chain:submit", { code, words: ALICE_CHAIN });
+    expect(wrong).toMatchObject({ ok: false, error: "INVALID_CHAIN" });
+    expect((await a.emitWithAck("chain:submit", { code, words: ALICE_CHAIN.slice(0, 4) })).ok).toBe(true);
+    expect((await b.emitWithAck("chain:submit", { code, words: BOB_CHAIN.slice(0, 4) })).ok).toBe(true);
+    await waitFor(() => latest(a).phase === "PLAYING");
+    expect(latest(a).match!.totalRounds).toBe(3);
+    expect(latest(a).match!.turn!.endsAt).not.toBeNull();
+  });
+});

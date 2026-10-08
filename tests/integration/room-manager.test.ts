@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { DEFAULT_TIMINGS, HIDDEN_WORDS } from "@/constants/game";
+import { DEFAULT_TIMINGS } from "@/constants/game";
+
+const HIDDEN_WORDS = 4;
 import { createContainer, type Container } from "@/server/container";
 import { GameError } from "@/server/game/errors";
 import type { RoomBroadcaster } from "@/server/game/room-manager";

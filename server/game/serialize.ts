@@ -12,7 +12,7 @@ import type { BoardWord, ServerRoom } from "./types";
 export function serializeRoomFor(
   room: ServerRoom,
   viewerId: string,
-  opts: { now: number; turnDurationMs: number; countdownDurationMs: number; graceMs: number },
+  opts: { now: number; countdownDurationMs: number; graceMs: number },
 ): RoomView {
   const viewer = room.players.find((p) => p.id === viewerId);
   const players: PlayerView[] = room.players.map((p) => ({
@@ -40,7 +40,7 @@ export function serializeRoomFor(
     myChain: viewer?.chain ? [...viewer.chain] : null,
     match: serializeMatch(room, viewerId),
     rematch: room.rematch ? { ...room.rematch } : null,
-    turnDurationMs: opts.turnDurationMs,
+    settings: { ...room.settings },
     countdownDurationMs: opts.countdownDurationMs,
     closedReason: room.closedReason,
   };
@@ -82,7 +82,8 @@ function serializeMatch(room: ServerRoom, viewerId: string): MatchView | null {
   return {
     id: match.id,
     number: match.number,
-    totalRounds: (match.boards[match.order[0]]?.length ?? 1) - 1,
+    settings: { ...match.settings },
+    totalRounds: match.settings.chainLength - 1,
     firstPlayerId: match.order[0],
     turn,
     // Board I am guessing = the opponent's chain → masked.
@@ -94,7 +95,7 @@ function serializeMatch(room: ServerRoom, viewerId: string): MatchView | null {
   };
 }
 
-function maskedCard(word: BoardWord, matchOver: boolean): WordCardView {
+export function maskedCard(word: BoardWord, matchOver: boolean): WordCardView {
   const fullyKnown = matchOver || word.status === "GIVEN" || word.status === "SOLVED" || word.status === "FAILED";
   const visible = fullyKnown ? word.answer.length : word.revealed;
   return {

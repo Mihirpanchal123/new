@@ -1,5 +1,6 @@
 "use client";
 
+import { Infinity as InfinityIcon } from "lucide-react";
 import { motion } from "motion/react";
 import { useEffect, useRef } from "react";
 import { DEFAULT_TIMINGS } from "@/constants/game";
@@ -21,12 +22,15 @@ export function Timer({
   durationMs,
   paused,
   audible,
+  untimed,
   className,
 }: {
   endsAt: number | null;
   durationMs: number;
   paused?: boolean;
   audible?: boolean;
+  /** The game has no turn timer: show an infinity badge instead of a countdown. */
+  untimed?: boolean;
   className?: string;
 }) {
   const left = useCountdown(paused ? null : endsAt);
@@ -45,6 +49,19 @@ export function Timer({
       sound.playTick();
     }
   }, [seconds, low, audible, paused]);
+
+  if (untimed) {
+    return (
+      <div
+        className={cn("grid size-[3.75rem] shrink-0 place-items-center rounded-full border-[5px] border-surface-3 bg-surface text-muted", className)}
+        role="timer"
+        aria-label="No time limit"
+        title="No time limit"
+      >
+        <InfinityIcon className="size-6" aria-hidden />
+      </div>
+    );
+  }
 
   return (
     <motion.div

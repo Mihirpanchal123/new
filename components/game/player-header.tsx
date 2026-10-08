@@ -54,15 +54,18 @@ export function PlayerHeader({
   opponent,
   scores,
   activeId,
+  showYou = true,
 }: {
   me: PlayerView;
   opponent: PlayerView;
   scores: Record<string, number>;
   activeId: string | null;
+  /** Off for one-screen games, where neither side is "you". */
+  showYou?: boolean;
 }) {
   return (
     <div className="flex items-center gap-2">
-      <Side player={me} score={scores[me.id] ?? 0} active={activeId === me.id} isMe align="left" />
+      <Side player={me} score={scores[me.id] ?? 0} active={activeId === me.id} isMe={showYou} align="left" />
       <span className="shrink-0 rounded-full bg-surface-2 px-2 py-1 font-display text-xs font-bold text-muted">VS</span>
       <Side player={opponent} score={scores[opponent.id] ?? 0} active={activeId === opponent.id} isMe={false} align="right" />
     </div>

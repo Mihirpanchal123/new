@@ -20,8 +20,8 @@ export interface ChainValidationResult {
 export class WordValidationService {
   constructor(private readonly validators: ChainValidator[] = []) {}
 
-  async validateChain(rawWords: readonly string[]): Promise<ChainValidationResult> {
-    const base = checkChain(rawWords);
+  async validateChain(rawWords: readonly string[], length: number = rawWords.length): Promise<ChainValidationResult> {
+    const base = checkChain(rawWords, length);
     const fieldErrors: Record<string, string> = {};
     base.issues.forEach((issue, i) => {
       if (issue) fieldErrors[String(i)] = WORD_ISSUE_MESSAGES[issue];

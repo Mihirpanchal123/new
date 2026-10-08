@@ -1,3 +1,4 @@
+import type { GameSettings } from "@/constants/game";
 import type {
   EndReason,
   PlayerMatchStats,
@@ -46,7 +47,8 @@ export interface ServerTurn {
   position: number;
   phase: TurnPhase;
   startedAt: number;
-  endsAt: number;
+  /** null when the room plays untimed turns. */
+  endsAt: number | null;
   resultEndsAt: number | null;
   outcome: TurnOutcome | null;
   recentGuesses: string[];
@@ -61,6 +63,8 @@ export interface ServerMatchResult {
 export interface ServerMatch {
   id: string;
   number: number;
+  /** Settings frozen when the match started. */
+  settings: GameSettings;
   startedAt: number;
   completedAt: number | null;
   /** [first guesser, second guesser] */
@@ -85,6 +89,8 @@ export interface ServerRoom {
   version: number;
   phase: RoomPhase;
   hostId: string;
+  /** Chosen by the host in the lobby; applies to the next match. */
+  settings: GameSettings;
   players: ServerPlayer[];
   countdownEndsAt: number | null;
   match: ServerMatch | null;

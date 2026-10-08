@@ -1,13 +1,13 @@
 "use client";
 
 import { AnimatePresence, motion } from "motion/react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 import { selectMe, selectOpponent } from "@/stores/game-store";
 import type { RoomView } from "@/types/game";
 import { ConnectionIndicator } from "./connection-indicator";
 import { GameStatus, OpponentPresenceBanner } from "./game-status";
-import { GuessBar } from "./guess-bar";
+import { GuessBar, onlineGuessActions } from "./guess-bar";
 import { useGameEvents } from "./hooks/use-game-events";
 import { PlayerHeader } from "./player-header";
 import { RoundIndicator, Timer } from "./timer";
@@ -21,6 +21,7 @@ export function GameBoard({ room }: { room: RoomView }) {
   const opponent = selectOpponent(room)!;
   const turn = match.turn;
   const isMyTurn = turn?.guesserId === me.id;
+  const actions = useMemo(() => onlineGuessActions(room.code), [room.code]);
 
   // Mobile shows one chain at a time and follows the turn; the user can peek at the other.
   const [view, setView] = useState<View>(isMyTurn ? "theirs" : "mine");
@@ -101,7 +102,8 @@ export function GameBoard({ room }: { room: RoomView }) {
           <RoundIndicator round={turn?.round ?? match.totalRounds} total={match.totalRounds} />
           <Timer
             endsAt={turn?.phase === "GUESSING" ? turn.endsAt : null}
-            durationMs={room.turnDurationMs}
+            durationMs={match.settings.turnMs ?? 0}
+            untimed={match.settings.turnMs === null}
             paused={turn?.phase !== "GUESSING"}
             audible={isMyTurn}
           />
@@ -155,7 +157,7 @@ export function GameBoard({ room }: { room: RoomView }) {
       <div className="sticky bottom-0 z-20 border-t border-border/70 bg-bg/90 px-4 pt-3 backdrop-blur-md safe-bottom sm:px-6">
         <div className="mx-auto max-w-xl">
           <GuessBar
-            code={room.code}
+            actions={actions}
             turn={turn}
             card={theirCard}
             isMyTurn={isMyTurn}

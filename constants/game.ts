@@ -1,8 +1,30 @@
-/** Number of words in every chain. The first word is always visible. */
-export const CHAIN_LENGTH = 5;
+/**
+ * Words per chain, chosen per game. The first word is always visible; the
+ * rest are guessed one per round, so a chain of N words plays N − 1 rounds.
+ */
+export const MIN_CHAIN_LENGTH = 4;
+export const MAX_CHAIN_LENGTH = 8;
+export const DEFAULT_CHAIN_LENGTH = 5;
+export const CHAIN_LENGTH_OPTIONS = [4, 5, 6, 7, 8] as const;
 
-/** Words the opponent actually has to guess — one per round. */
-export const HIDDEN_WORDS = CHAIN_LENGTH - 1;
+/** Turn-timer presets in seconds. `null` (no timer) is offered alongside these. */
+export const TURN_TIME_OPTIONS = [15, 30, 45, 60, 90, 120] as const;
+export const MIN_TURN_MS = 5_000;
+export const MAX_TURN_MS = 300_000;
+
+export interface GameSettings {
+  /** Words per chain, MIN_CHAIN_LENGTH..MAX_CHAIN_LENGTH. */
+  chainLength: number;
+  /** Time per guessing turn, or null for untimed turns. */
+  turnMs: number | null;
+}
+
+/** Rounds in a game = hidden words per chain. */
+export const roundsFor = (chainLength: number) => chainLength - 1;
+
+export function describeSettings(s: GameSettings): string {
+  return `${s.chainLength} words · ${s.turnMs === null ? "no timer" : `${Math.round(s.turnMs / 1000)}s turns`}`;
+}
 
 export const MAX_PLAYERS = 2;
 
@@ -23,7 +45,7 @@ export const MASK_CHAR = "•";
 
 /** Default timings in milliseconds. The server may override these via env. */
 export const DEFAULT_TIMINGS = {
-  /** Time a player has to guess one word. */
+  /** Default time a player has to guess one word (each room can change it). */
   turnMs: 30_000,
   /** Pause after a turn resolves so both players can see the outcome. */
   resultMs: 2_600,
@@ -38,6 +60,8 @@ export const DEFAULT_TIMINGS = {
 } as const;
 
 export type Timings = { [K in keyof typeof DEFAULT_TIMINGS]: number };
+
+export const DEFAULT_SETTINGS: GameSettings = { chainLength: DEFAULT_CHAIN_LENGTH, turnMs: DEFAULT_TIMINGS.turnMs };
 
 export const ROOM_TTL = {
   /** Remove rooms nobody has touched in this long. */

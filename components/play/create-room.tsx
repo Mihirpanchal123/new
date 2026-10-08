@@ -5,7 +5,9 @@ import { motion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { command, getSocket } from "@/lib/realtime/client";
+import { settingsSchema } from "@/lib/validation/schemas";
 import { useSessionStore } from "@/stores/session-store";
+import { useUiStore } from "@/stores/ui-store";
 import { Button } from "../ui/button";
 
 /** Creates a room as soon as the page loads, then jumps into its lobby. */
@@ -42,7 +44,8 @@ export function CreateRoom() {
         return;
       }
     }
-    const res = await command("room:create", {});
+    const saved = settingsSchema.nullable().safeParse(useUiStore.getState().gameSettings);
+    const res = await command("room:create", saved.success && saved.data ? { settings: saved.data } : {});
     if (res.ok) router.replace(`/game/${res.data.code}`);
     else setError(res.message);
   }, [router]);

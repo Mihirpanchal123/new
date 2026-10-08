@@ -7,6 +7,7 @@
  * state from events; they only react to them.
  */
 import type { AchievementId } from "@/constants/achievements";
+import type { GameSettings } from "@/constants/game";
 import type { EndReason, PublicProfile, RoomView, TurnOutcome } from "./game";
 
 export type GameEvent =
@@ -14,12 +15,13 @@ export type GameEvent =
   | { type: "room.joined"; player: PublicProfile }
   | { type: "player.left"; playerId: string }
   | { type: "player.ready"; playerId: string; ready: boolean }
+  | { type: "settings.updated"; settings: GameSettings; by: string }
   | { type: "setup.start" }
   | { type: "chain.submitted"; playerId: string }
   | { type: "chain.unlocked"; playerId: string }
   | { type: "game.countdown"; endsAt: number }
   | { type: "game.start"; matchId: string; firstPlayerId: string }
-  | { type: "turn.start"; turnId: number; round: number; guesserId: string; position: number; endsAt: number }
+  | { type: "turn.start"; turnId: number; round: number; guesserId: string; position: number; endsAt: number | null }
   | {
       type: "guess.result";
       turnId: number;
@@ -107,7 +109,9 @@ export interface HintAckData {
 }
 
 export interface ClientToServerEvents {
-  "room:create": (payload: Record<string, never>, ack: Ack<{ code: string }>) => void;
+  "room:create": (payload: { settings?: GameSettings }, ack: Ack<{ code: string }>) => void;
+  /** Host only, in the lobby. */
+  "room:settings": (payload: { code: string; settings: GameSettings }, ack: Ack) => void;
   "room:join": (payload: { code: string }, ack: Ack<RoomView>) => void;
   /** Stop watching a room (navigated away). Not a forfeit. */
   "room:unwatch": (payload: { code: string }) => void;

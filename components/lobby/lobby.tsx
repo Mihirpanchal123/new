@@ -5,14 +5,17 @@ import { AnimatePresence, motion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
+import { describeSettings, type GameSettings } from "@/constants/game";
 import { command } from "@/lib/realtime/client";
 import { cn } from "@/lib/utils";
 import { selectMe, selectOpponent } from "@/stores/game-store";
+import { useUiStore } from "@/stores/ui-store";
 import type { PlayerView, RoomView } from "@/types/game";
 import { ConnectionIndicator } from "../game/connection-indicator";
 import { PlayerAvatar } from "../player/player-avatar";
 import { Button } from "../ui/button";
 import { Badge, Card } from "../ui/primitives";
+import { GameSettingsPicker } from "./game-settings-picker";
 import { CopyCodeButton, RoomCode, ShareRoomButton } from "./room-code";
 
 function PlayerSlot({ player, isMe }: { player: PlayerView | null; isMe?: boolean }) {
@@ -68,6 +71,12 @@ export function Lobby({ room }: { room: RoomView }) {
     if (!res.ok) toast.error(res.message);
   }
 
+  async function changeSettings(settings: GameSettings) {
+    useUiStore.getState().set({ gameSettings: settings });
+    const res = await command("room:settings", { code: room.code, settings });
+    if (!res.ok) toast.error(res.message);
+  }
+
   async function leave() {
     setPending("leave");
     await command("room:leave", { code: room.code });
@@ -99,6 +108,19 @@ export function Lobby({ room }: { room: RoomView }) {
             <CopyCodeButton code={room.code} />
             <ShareRoomButton code={room.code} />
           </div>
+        </Card>
+
+        <Card className="flex flex-col gap-3 px-4 py-5">
+          <div className="flex flex-col px-1">
+            <h2 className="font-display text-lg font-semibold">Game settings</h2>
+            <span className="text-xs font-bold text-muted">
+              {me.isHost ? "Changing these un-readies both players" : "Only the host can change these"}
+            </span>
+          </div>
+          <GameSettingsPicker value={room.settings} onChange={(s) => void changeSettings(s)} disabled={!me.isHost} />
+          <p className="sr-only" aria-live="polite">
+            {describeSettings(room.settings)}
+          </p>
         </Card>
 
         <div className="relative grid grid-cols-2 gap-3">

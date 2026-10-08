@@ -2,6 +2,7 @@
 
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
+import type { GameSettings } from "@/constants/game";
 
 export type MotionPreference = "system" | "reduce" | "full";
 
@@ -12,6 +13,8 @@ interface UiState {
   notificationsEnabled: boolean;
   motion: MotionPreference;
   hasSeenTutorial: boolean;
+  /** Last game settings this device chose (null = server default); new rooms and local games start from these. */
+  gameSettings: GameSettings | null;
   set: (patch: Partial<Omit<UiState, "set">>) => void;
 }
 
@@ -25,6 +28,7 @@ export const useUiStore = create<UiState>()(
       notificationsEnabled: true,
       motion: "system",
       hasSeenTutorial: false,
+      gameSettings: null,
       set: (patch) => set(patch),
     }),
     {

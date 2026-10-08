@@ -5,7 +5,6 @@ import {
   SPEED_DEMON_AVG_MS,
   type AchievementId,
 } from "@/constants/achievements";
-import { HIDDEN_WORDS } from "@/constants/game";
 import { AVATAR_COLOR_IDS, AVATAR_IDS, randomGuestName, type AvatarColor, type AvatarId } from "@/constants/profile";
 import type {
   LeaderboardRow,
@@ -159,7 +158,7 @@ export class ProfileStore {
       const s = profile.stats;
       const won = record.winnerId === player.id;
       const draw = record.winnerId === null;
-      const perfect = player.stats.solved === HIDDEN_WORDS;
+      const perfect = player.words.length > 0 && player.stats.solved === player.words.length;
 
       s.gamesPlayed += 1;
       if (won) s.wins += 1;

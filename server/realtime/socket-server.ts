@@ -51,7 +51,6 @@ export function attachRealtime(io: GameServer, c: Container) {
           "room:state",
           serializeRoomFor(room, p.id, {
             now,
-            turnDurationMs: config.timings.turnMs,
             countdownDurationMs: config.timings.countdownMs,
             graceMs: config.timings.disconnectGraceMs,
           }),
@@ -69,7 +68,6 @@ export function attachRealtime(io: GameServer, c: Container) {
   const viewFor = (room: ServerRoom, playerId: string) =>
     serializeRoomFor(room, playerId, {
       now: Date.now(),
-      turnDurationMs: config.timings.turnMs,
             countdownDurationMs: config.timings.countdownMs,
       graceMs: config.timings.disconnectGraceMs,
     });
@@ -163,9 +161,9 @@ export function attachRealtime(io: GameServer, c: Container) {
 
     socket.on(
       "room:create",
-      handle(payloadSchemas.code.partial(), "createRoom", () => {
+      handle(payloadSchemas.create, "createRoom", ({ settings }) => {
         const profile = profiles.ensure(playerId);
-        const room = rooms.createRoom(toPublic(profile));
+        const room = rooms.createRoom(toPublic(profile), settings);
         return { code: room.code };
       }),
     );
@@ -219,6 +217,14 @@ export function attachRealtime(io: GameServer, c: Container) {
     );
 
     socket.on(
+      "room:settings",
+      handle(payloadSchemas.settings, "ready", ({ code, settings }) => {
+        rooms.apply(code, (r) => c.engine.updateSettings(r, playerId, settings));
+        return null;
+      }),
+    );
+
+    socket.on(
       "player:ready",
       handle(payloadSchemas.ready, "ready", ({ code, ready }) => {
         rooms.apply(code, (r, now) => c.engine.setPlayerReady(r, playerId, ready, now));
@@ -229,7 +235,11 @@ export function attachRealtime(io: GameServer, c: Container) {
     socket.on(
       "chain:submit",
       handle(payloadSchemas.chain, "chain", async ({ code, words }) => {
-        const validation = await c.wordValidation.validateChain(words);
+        const expected = rooms.getRoom(code).settings.chainLength;
+        if (words.length !== expected) {
+          throw new GameError("INVALID_CHAIN", `This game uses ${expected} words per chain.`);
+        }
+        const validation = await c.wordValidation.validateChain(words, expected);
         if (!validation.valid) {
           throw new GameError("INVALID_CHAIN", "Some of your words need a tweak.", validation.fieldErrors);
         }

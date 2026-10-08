@@ -2,7 +2,7 @@
 
 **Think alike. Guess faster.**
 
-A realtime, two-player word game. Each player builds a chain of five connected words (COFFEE → BEAN → PLANT → FARM → MARKET). Players then take turns cracking each other's chain: the first word is visible, and the rest show only their first letter. Hints reveal more letters, but each one lowers the word's value. Highest score wins.
+A realtime, two-player word game. Each player builds a chain of connected words (4–8, chosen per game) (COFFEE → BEAN → PLANT → FARM → MARKET). Players then take turns cracking each other's chain: the first word is visible, and the rest show only their first letter. Hints reveal more letters, but each one lowers the word's value. Highest score wins.
 
 Mobile-first, guest-friendly (no sign-up), server-authoritative, and **no database required**.
 
@@ -13,10 +13,12 @@ Mobile-first, guest-friendly (no sign-up), server-authoritative, and **no databa
 - **Instant rooms**: 5-character codes (no ambiguous characters), copy code, native share sheet, and invite links (`/game/CODE`) that join directly.
 - **Guest profiles**: name, 12 avatars and 8 colours, kept via a signed cookie.
 - **Lobby**: live presence, ready-up, open seat, and a "GO!" transition.
+- **Game settings**: the host picks 4–8 words per chain and a turn timer (15s–2m) or no timer at all. Changing settings un-readies both players so they agree to the rules. The last choice is remembered for the next room.
+- **One-screen mode** (`/local`): two players share one device. Each writes their chain behind a "pass the device" screen, then they alternate guesses. Both chains are only ever shown masked, so nothing secret appears on the shared screen. It runs the same `GameEngine` in the browser, survives a refresh, and is not recorded to profiles or the leaderboard.
 - **Chain builder**: step indicator, live validation, example chains, lock/edit, and a draft that survives a refresh.
 - **"3 · 2 · 1 · DUEL!"** countdown, synced to the server clock.
-- **Game board**: alternating 30-second turns over 4 rounds, flip-in letter tiles, hints with a tap-twice confirm before revealing the last letter, wrong-guess shake, particle bursts, a floating "+points" and animated score counters. While your opponent guesses, you watch their wrong attempts live.
-- **Scoring**: 100 / 75 / 50 / 25 by hints used, −5 per distinct wrong guess (floor of 10), a speed bonus of up to +20, and 0 for a timeout or a fully revealed word. All values are configurable.
+- **Game board**: alternating turns (one round per hidden word), flip-in letter tiles, hints with a tap-twice confirm before revealing the last letter, wrong-guess shake, particle bursts, a floating "+points" and animated score counters. While your opponent guesses, you watch their wrong attempts live.
+- **Scoring**: 100 / 75 / 50 / 25 by hints used, −5 per distinct wrong guess (floor of 10), a speed bonus of up to +20 (timed games only), and 0 for a timeout or a fully revealed word. All values are configurable.
 - **Disconnects**: the opponent sees a reconnect countdown, a refresh restores the exact state, and a forfeit happens after the grace period. A second tab takes over the session cleanly.
 - **Results**: win, loss or draw screen, both chains revealed, stat comparison, rematch (request / accept / decline / cancel), sharing, and a permanent match recap page.
 - **Profile**: stats, recent matches, and 8 achievements (locked and unlocked states).
@@ -124,7 +126,7 @@ LOBBY ──both ready──▶ SETUP ──both chains locked──▶ COUNTDOW
 any ──▶ CLOSED (empty, abandoned, expired)
 ```
 
-Inside `PLAYING`, each of the 8 turns (4 rounds × 2 players, alternating) goes `GUESSING` (30s) → `RESULT` (~2.6s) → next turn. The first guesser alternates between rematches.
+Inside `PLAYING`, each turn ((words − 1) rounds × 2 players, alternating) goes `GUESSING` (the room’s timer, or open-ended when untimed) → `RESULT` (~2.6s) → next turn. The first guesser alternates between rematches.
 
 ### Realtime model
 

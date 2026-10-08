@@ -27,7 +27,7 @@ const TITLES: Record<Outcome, { text: string; icon: typeof Trophy; tone: string 
   draw: { text: "It's a draw!", icon: Handshake, tone: "text-brand" },
 };
 
-function StatRow({ label, mine, theirs, better }: { label: string; mine: string; theirs: string; better: "mine" | "theirs" | null }) {
+export function StatRow({ label, mine, theirs, better }: { label: string; mine: string; theirs: string; better: "mine" | "theirs" | null }) {
   return (
     <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 py-2.5">
       <span className={cn("text-left font-display text-lg font-bold tabular", better === "mine" ? "text-success" : "text-ink")}>{mine}</span>
@@ -37,12 +37,12 @@ function StatRow({ label, mine, theirs, better }: { label: string; mine: string;
   );
 }
 
-function compare(a: number | null, b: number | null, higherIsBetter: boolean): "mine" | "theirs" | null {
+export function compare(a: number | null, b: number | null, higherIsBetter: boolean): "mine" | "theirs" | null {
   if (a === null || b === null || a === b) return null;
   return (a > b) === higherIsBetter ? "mine" : "theirs";
 }
 
-function ChainRecap({ owner, words, cards }: { owner: PlayerView; words: string[]; cards: WordCardView[] }) {
+export function ChainRecap({ owner, words, cards }: { owner: PlayerView; words: string[]; cards: WordCardView[] }) {
   return (
     <div className="min-w-0">
       <p className="mb-2 flex items-center gap-2 truncate text-sm font-extrabold">

@@ -12,10 +12,13 @@ export function GameStatus({
   meId,
   opponentName,
   resolvedCard,
+  nameOf,
 }: {
   turn: TurnView | null;
   meId: string;
   opponentName: string;
+  /** One-screen games: name every player instead of "you". */
+  nameOf?: (playerId: string) => string;
   /** The card that just resolved (for RESULT phase text). */
   resolvedCard: WordCardView | null;
 }) {
@@ -25,11 +28,16 @@ export function GameStatus({
   if (turn) {
     const mine = turn.guesserId === meId;
     if (turn.phase === "GUESSING") {
-      text = mine ? `Your turn — crack word ${turn.position + 1}` : `${opponentName} is guessing word ${turn.position + 1}`;
-      tone = mine ? "brand" : "muted";
+      if (nameOf) {
+        text = `${nameOf(turn.guesserId)}'s turn — crack word ${turn.position + 1}`;
+        tone = "brand";
+      } else {
+        text = mine ? `Your turn — crack word ${turn.position + 1}` : `${opponentName} is guessing word ${turn.position + 1}`;
+        tone = mine ? "brand" : "muted";
+      }
     } else {
       const word = resolvedCard?.letters.join("") ?? "";
-      const who = mine ? "You" : opponentName;
+      const who = nameOf ? nameOf(turn.guesserId) : mine ? "You" : opponentName;
       if (turn.outcome === "SOLVED") {
         text = `${who} solved ${word}! +${resolvedCard?.points ?? 0}`;
         tone = "success";
