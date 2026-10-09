@@ -11,7 +11,7 @@ export const ANALYTICS_EVENTS = [
   "guess_submitted",
   "guess_correct",
   "guess_wrong",
-  "hint_used",
+  "turn_skipped",
   "game_completed",
   "rematch_requested",
   "rematch_accepted",

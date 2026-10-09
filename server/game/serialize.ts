@@ -1,3 +1,4 @@
+import { hiddenWordsFor } from "@/constants/game";
 import { getMaskedLetters } from "@/lib/game/mask";
 import type { MatchResultView, MatchView, PlayerView, RoomView, WordCardView } from "@/types/game";
 import type { BoardWord, ServerRoom } from "./types";
@@ -83,7 +84,7 @@ function serializeMatch(room: ServerRoom, viewerId: string): MatchView | null {
     id: match.id,
     number: match.number,
     settings: { ...match.settings },
-    totalRounds: match.settings.chainLength - 1,
+    totalWords: hiddenWordsFor(match.settings.chainLength),
     firstPlayerId: match.order[0],
     turn,
     // Board I am guessing = the opponent's chain → masked.

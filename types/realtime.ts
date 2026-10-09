@@ -47,8 +47,10 @@ export type GameEvent =
       guesserId: string;
       position: number;
       outcome: TurnOutcome;
+      /** Negative for a skip. */
       points: number;
-      word: string;
+      /** The answer, only when solved. */
+      word: string | null;
     }
   | { type: "score.updated"; scores: Record<string, number> }
   | { type: "game.complete"; matchId: string; winnerId: string | null; endReason: EndReason }
@@ -102,10 +104,9 @@ export interface GuessAckData {
   points: number;
 }
 
-export interface HintAckData {
+export interface SkipAckData {
   revealedCount: number;
   letter: string;
-  exhausted: boolean;
 }
 
 /**
@@ -139,9 +140,10 @@ export interface ClientToServerEvents {
     payload: { code: string; turnId: number; guess: string; actionId: string },
     ack: Ack<GuessAckData>,
   ) => void;
-  "hint:request": (
+  /** Reveal one more letter, pay the skip penalty and pass the turn. */
+  "turn:skip": (
     payload: { code: string; turnId: number; expectedRevealed: number; actionId: string },
-    ack: Ack<HintAckData>,
+    ack: Ack<SkipAckData>,
   ) => void;
   "rematch:request": (payload: { code: string }, ack: Ack) => void;
   "rematch:respond": (payload: { code: string; accept: boolean }, ack: Ack) => void;

@@ -44,7 +44,11 @@ export function LocalResults({ view }: { view: LocalView }) {
         <h1 className="max-w-full break-words font-display text-4xl font-bold uppercase sm:text-6xl">
           {winner ? `${winner.displayName} wins!` : "It's a draw!"}
         </h1>
-        <p className="mt-2 text-sm font-bold text-muted">{describeSettings(match.settings)}</p>
+        <p className="mt-2 text-sm font-bold text-muted">
+          {winner && result.stats[winner.id]?.solved === match.totalWords
+            ? `Cracked the whole chain first · ${describeSettings(match.settings)}`
+            : describeSettings(match.settings)}
+        </p>
       </motion.div>
 
       <Card className="mt-6 px-4 py-5 sm:px-6">
@@ -60,8 +64,8 @@ export function LocalResults({ view }: { view: LocalView }) {
         </div>
 
         <div className="mt-5 divide-y divide-border border-t border-border">
-          <StatRow label="Words solved" mine={`${s1.solved}/${match.totalRounds}`} theirs={`${s2.solved}/${match.totalRounds}`} better={compare(s1.solved, s2.solved, true)} />
-          <StatRow label="Hints used" mine={String(s1.hintsUsed)} theirs={String(s2.hintsUsed)} better={compare(s1.hintsUsed, s2.hintsUsed, false)} />
+          <StatRow label="Words solved" mine={`${s1.solved}/${match.totalWords}`} theirs={`${s2.solved}/${match.totalWords}`} better={compare(s1.solved, s2.solved, true)} />
+          <StatRow label="Skips" mine={String(s1.hintsUsed)} theirs={String(s2.hintsUsed)} better={compare(s1.hintsUsed, s2.hintsUsed, false)} />
           <StatRow label="Avg. guess time" mine={formatSeconds(s1.avgSolveMs)} theirs={formatSeconds(s2.avgSolveMs)} better={compare(s1.avgSolveMs, s2.avgSolveMs, false)} />
           <StatRow label="Wrong guesses" mine={String(s1.wrongGuesses)} theirs={String(s2.wrongGuesses)} better={compare(s1.wrongGuesses, s2.wrongGuesses, false)} />
         </div>

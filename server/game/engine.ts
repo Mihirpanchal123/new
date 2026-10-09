@@ -1,15 +1,12 @@
-import { DEFAULT_CHAIN_LENGTH, type GameSettings, MAX_PLAYERS, roundsFor, type Timings } from "@/constants/game";
+import { DEFAULT_CHAIN_LENGTH, type GameSettings, MAX_IDLE_TURNS, MAX_PLAYERS, type Timings } from "@/constants/game";
 import type { ScoringConfig } from "@/constants/scoring";
 import { calculateScore } from "@/lib/game/scoring";
 import { normalizeGuess } from "@/lib/validation/words";
 import type { PlayerMatchStats, PublicProfile, TurnOutcome } from "@/types/game";
-import type { GameEvent, GuessAckData, HintAckData } from "@/types/realtime";
+import type { GameEvent, GuessAckData, SkipAckData } from "@/types/realtime";
 import { GameError } from "./errors";
 import { assertPhase, transition } from "./state-machine";
 import type { BoardWord, ServerMatch, ServerPlayer, ServerRoom, ServerTurn } from "./types";
-
-/** Each player guesses every hidden word of the other's chain once. */
-export const totalTurns = (chainLength: number) => roundsFor(chainLength) * MAX_PLAYERS;
 
 const defaultId = () => globalThis.crypto.randomUUID();
 
@@ -233,6 +230,7 @@ export class GameEngine {
       order,
       turnSeq: 0,
       turn: null,
+      idleTurns: 0,
       boards: { [a.id]: buildBoard(b.chain), [b.id]: buildBoard(a.chain) },
       chains: { [a.id]: [...a.chain], [b.id]: [...b.chain] },
       scores: { [a.id]: 0, [b.id]: 0 },
@@ -254,8 +252,10 @@ export class GameEngine {
     const round = Math.floor(index / MAX_PLAYERS) + 1;
     const guesserId = match.order[index % MAX_PLAYERS]!;
     const ownerId = match.order[(index + 1) % MAX_PLAYERS]!;
-    const position = round; // position 0 is the visible first word
-    const word = boardWord(match, guesserId, position);
+    // Each player works down the chain in order; a skipped word stays theirs until solved.
+    const word = (match.boards[guesserId] ?? []).find((w) => w.status !== "GIVEN" && w.status !== "SOLVED");
+    if (!word) throw new GameError("INVALID_STATE");
+    const position = word.position;
     word.status = "ACTIVE";
 
     match.turnSeq += 1;
@@ -301,7 +301,6 @@ export class GameEngine {
       // Untimed games have no speed bonus (turnMs 0).
       const { total } = calculateScore(
         {
-          hintsUsed: word.hints,
           wrongGuesses: word.wrong,
           elapsedMs: turnTime(match, turn, now),
           turnMs: match.settings.turnMs ?? 0,
@@ -330,16 +329,22 @@ export class GameEngine {
     };
   }
 
-  requestHint(
+  /**
+   * Give up the turn: reveal the next letter of the current word, pay the skip
+   * penalty, and hand the turn to the opponent. The word stays yours to solve.
+   */
+  skipTurn(
     room: ServerRoom,
     playerId: string,
     input: { turnId: number; expectedRevealed: number },
     now: number,
-  ): ActionResult<HintAckData> {
+  ): ActionResult<SkipAckData> {
     const { match, turn, word } = this.requireGuessingTurn(room, playerId, input.turnId, now);
     // Guards against double-clicks and stale clients revealing two letters.
     if (input.expectedRevealed !== word.revealed) throw new GameError("STALE");
-    if (word.revealed >= word.answer.length) throw new GameError("INVALID_STATE");
+    if (word.revealed >= word.answer.length) {
+      throw new GameError("INVALID_STATE", "Every letter is showing — type the word!");
+    }
 
     const index = word.revealed;
     word.revealed += 1;
@@ -355,13 +360,9 @@ export class GameEngine {
         letter,
         revealedCount: word.revealed,
       },
+      ...this.resolveTurn(room, match, turn, word, "SKIPPED", -this.scoring.skipPenalty, now),
     ];
-
-    const exhausted = word.revealed >= word.answer.length;
-    if (exhausted) {
-      events.push(...this.resolveTurn(room, match, turn, word, "REVEALED", this.scoring.failedPoints, now));
-    }
-    return { events, data: { revealedCount: word.revealed, letter, exhausted } };
+    return { events, data: { revealedCount: word.revealed, letter } };
   }
 
   handleTimeout(room: ServerRoom, now: number): GameEvent[] {
@@ -371,7 +372,7 @@ export class GameEngine {
     const word = boardWord(match, turn.guesserId, turn.position);
     return [
       { type: "turn.timeout", turnId: turn.id, guesserId: turn.guesserId, position: turn.position },
-      ...this.resolveTurn(room, match, turn, word, "TIMEOUT", this.scoring.failedPoints, now),
+      ...this.resolveTurn(room, match, turn, word, "TIMEOUT", 0, now),
     ];
   }
 
@@ -384,11 +385,14 @@ export class GameEngine {
     points: number,
     now: number,
   ): GameEvent[] {
-    word.status = outcome === "SOLVED" ? "SOLVED" : "FAILED";
     word.outcome = outcome;
-    word.revealed = word.answer.length;
-    word.points = points;
-    word.timeMs = turnTime(match, turn, now);
+    word.timeMs += turnTime(match, turn, now);
+    if (outcome === "SOLVED") {
+      word.status = "SOLVED";
+      word.revealed = word.answer.length;
+      word.points = points;
+    }
+    match.idleTurns = outcome === "TIMEOUT" ? (match.idleTurns ?? 0) + 1 : 0;
 
     turn.phase = "RESULT";
     turn.outcome = outcome;
@@ -409,7 +413,8 @@ export class GameEngine {
         position: turn.position,
         outcome,
         points,
-        word: word.answer,
+        // Unsolved words stay secret — this event goes to both players.
+        word: outcome === "SOLVED" ? word.answer : null,
       },
       { type: "score.updated", scores: { ...match.scores } },
     ];
@@ -419,9 +424,12 @@ export class GameEngine {
     const match = requireMatch(room);
     const turn = match.turn;
     if (!turn || turn.phase !== "RESULT") return [];
-    const next = turn.index + 1;
-    if (next >= totalTurns(match.settings.chainLength)) return this.completeGame(room, now, "COMPLETED");
-    return this.startTurn(room, next, now);
+    // First to crack the whole chain wins outright, whatever the score.
+    const finished = (match.boards[turn.guesserId] ?? []).every((w) => w.status === "GIVEN" || w.status === "SOLVED");
+    if (turn.outcome === "SOLVED" && finished) return this.completeGame(room, now, "COMPLETED", turn.guesserId);
+    // Nobody is playing (e.g. both walked away from a timed game): settle it on points.
+    if ((match.idleTurns ?? 0) >= MAX_IDLE_TURNS) return this.completeGame(room, now, "COMPLETED");
+    return this.startTurn(room, turn.index + 1, now);
   }
 
   // ───────────────────────────── Completion ─────────────────────────────
@@ -430,25 +438,30 @@ export class GameEngine {
     room: ServerRoom,
     now: number,
     endReason: "COMPLETED" | "FORFEIT",
-    forfeitWinnerId: string | null = null,
+    /** Decided by the caller (race won, forfeit); omitted = settled on points. */
+    decidedWinnerId?: string | null,
   ): GameEvent[] {
     assertPhase(room, "PLAYING");
     const match = requireMatch(room);
 
-    // A forfeit mid-turn still resolves the open word so the record is coherent.
+    // A forfeit mid-turn still counts the time spent on the open word.
     if (match.turn?.phase === "GUESSING") {
-      const w = boardWord(match, match.turn.guesserId, match.turn.position);
-      w.status = "FAILED";
-      w.outcome = "TIMEOUT";
-      w.revealed = w.answer.length;
-      w.timeMs = turnTime(match, match.turn, now);
+      boardWord(match, match.turn.guesserId, match.turn.position).timeMs += turnTime(match, match.turn, now);
     }
     match.turn = null;
+    // Whatever wasn't cracked is missed; the record and recap show it in full.
+    for (const board of Object.values(match.boards)) {
+      for (const w of board) {
+        if (w.status === "GIVEN" || w.status === "SOLVED") continue;
+        w.status = "FAILED";
+        w.revealed = w.answer.length;
+      }
+    }
 
     const [p1, p2] = match.order;
     const s1 = match.scores[p1] ?? 0;
     const s2 = match.scores[p2] ?? 0;
-    const winnerId = endReason === "FORFEIT" ? forfeitWinnerId : s1 === s2 ? null : s1 > s2 ? p1 : p2;
+    const winnerId = decidedWinnerId !== undefined ? decidedWinnerId : s1 === s2 ? null : s1 > s2 ? p1 : p2;
 
     match.completedAt = now;
     match.result = {

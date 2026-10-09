@@ -2,6 +2,7 @@
 
 import { WifiOff } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
+import { SCORING } from "@/constants/scoring";
 import { cn, formatClock } from "@/lib/utils";
 import type { PlayerView, TurnView, WordCardView } from "@/types/game";
 import { useCountdown } from "./hooks/use-server-clock";
@@ -36,16 +37,16 @@ export function GameStatus({
         tone = mine ? "brand" : "muted";
       }
     } else {
-      const word = resolvedCard?.letters.join("") ?? "";
       const who = nameOf ? nameOf(turn.guesserId) : mine ? "You" : opponentName;
       if (turn.outcome === "SOLVED") {
-        text = `${who} solved ${word}! +${resolvedCard?.points ?? 0}`;
+        text = `${who} solved ${resolvedCard?.letters.join("") ?? ""}! +${resolvedCard?.points ?? 0}`;
         tone = "success";
-      } else if (turn.outcome === "TIMEOUT") {
-        text = `Time's up! It was ${word}`;
+      } else if (turn.outcome === "SKIPPED") {
+        // Skipped and timed-out words are still unsolved — never name them.
+        text = `${who} skipped · +1 letter, −${SCORING.skipPenalty}`;
         tone = "danger";
       } else {
-        text = `Fully revealed: ${word}`;
+        text = "Time's up — turn passes";
         tone = "danger";
       }
     }

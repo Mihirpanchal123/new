@@ -10,7 +10,7 @@ import { GameStatus, OpponentPresenceBanner } from "./game-status";
 import { GuessBar, onlineGuessActions } from "./guess-bar";
 import { useGameEvents } from "./hooks/use-game-events";
 import { PlayerHeader } from "./player-header";
-import { RoundIndicator, Timer } from "./timer";
+import { RaceProgress, solvedCount, Timer } from "./timer";
 import { VoiceControl } from "./voice-control";
 import { WordChain, type Celebration } from "./word-chain";
 
@@ -103,7 +103,13 @@ export function GameBoard({ room }: { room: RoomView }) {
         </div>
         <PlayerHeader me={me} opponent={opponent} scores={match.scores} activeId={turn?.guesserId ?? null} />
         <div className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-surface/70 px-3 py-2 backdrop-blur">
-          <RoundIndicator round={turn?.round ?? match.totalRounds} total={match.totalRounds} />
+          <RaceProgress
+            total={match.totalWords}
+            racers={[
+              { name: "You", solved: solvedCount(match.opponentBoard) },
+              { name: opponent.displayName, solved: solvedCount(match.myBoard) },
+            ]}
+          />
           <Timer
             endsAt={turn?.phase === "GUESSING" ? turn.endsAt : null}
             durationMs={match.settings.turnMs ?? 0}

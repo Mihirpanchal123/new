@@ -62,7 +62,7 @@ export const payloadSchemas = {
     guess: z.string().max(GUESS_MAX_LENGTH * 2),
     actionId,
   }),
-  hint: z.object({
+  skip: z.object({
     code: roomCodeSchema,
     turnId: z.number().int().nonnegative(),
     expectedRevealed: z.number().int().min(0).max(WORD_MAX_LENGTH),

@@ -42,14 +42,15 @@ async function whoseTurn(a: Page, b: Page, timeoutMs = 20_000): Promise<Page> {
   throw new Error("Nobody's turn came up");
 }
 
-/** Plays every turn: whoever's input is enabled guesses the next word of the other chain. */
+/** Plays until someone cracks the whole chain: whoever's input is enabled guesses their next word. */
 async function playOut(a: Page, b: Page, opts: { reloadBMidGame?: boolean } = {}) {
   const progress = new Map<Page, number>([
     [a, 1],
     [b, 1],
   ]);
   let reloaded = false;
-  for (let turns = 0; turns < 8; turns++) {
+  const skipped = new Set<Page>();
+  for (let turns = 0; turns < 20; turns++) {
     const guesser = await whoseTurn(a, b);
     const n = progress.get(guesser)!;
     const word = (guesser === a ? CHAIN_B : CHAIN_A)[n]!;
@@ -64,24 +65,30 @@ async function playOut(a: Page, b: Page, opts: { reloadBMidGame?: boolean } = {}
 
     const input = guesser.locator("#guess-input");
     await expect(input).toBeEnabled();
-    // A wrong guess first on round 1, to exercise feedback.
+    // A wrong guess first on word 1, to exercise feedback.
     if (n === 1) {
       await input.fill("zzzz");
       await input.press("Enter");
       await expect(guesser.getByText("Not quite!")).toBeVisible();
     }
-    // And a hint on round 2.
-    if (n === 2) {
-      await guesser.getByRole("button", { name: /Reveal letter/ }).click();
-      await expect(guesser.getByText(/Hint used/)).toBeVisible();
+    // Each player skips word 2 once: the turn passes and the word waits for them.
+    if (n === 2 && !skipped.has(guesser)) {
+      skipped.add(guesser);
+      await guesser.getByRole("button", { name: /Skip/ }).click();
+      await expect(guesser.getByText(/You skipped/)).toBeVisible();
+      await expect.poll(() => input.isEnabled({ timeout: 100 }).catch(() => false), { timeout: 5_000 }).toBe(false);
+      continue;
     }
     await input.fill(word);
     await input.press("Enter");
     await expect(guesser.getByText(/Correct! \+\d+/).first()).toBeVisible();
     progress.set(guesser, n + 1);
+    // Cracked the whole chain: game over.
+    if (n + 1 === CHAIN_A.length) return;
     // Turn resolved: the input is disabled (result phase) or gone (game over / opponent's turn).
     await expect.poll(() => input.isEnabled({ timeout: 100 }).catch(() => false), { timeout: 5_000 }).toBe(false);
   }
+  throw new Error("Nobody finished the chain");
 }
 
 test.describe("Word Duel end-to-end", () => {

@@ -1,7 +1,7 @@
 "use client";
 
 import { create } from "zustand";
-import { DEFAULT_TIMINGS, type GameSettings } from "@/constants/game";
+import { DEFAULT_TIMINGS, type GameSettings, hiddenWordsFor } from "@/constants/game";
 import { SCORING } from "@/constants/scoring";
 import { gameEvents } from "@/lib/realtime/events";
 import { GameEngine } from "@/server/game/engine";
@@ -16,7 +16,7 @@ import type {
   TurnView,
   WordCardView,
 } from "@/types/game";
-import type { AckResult, GameEvent, GuessAckData, HintAckData } from "@/types/realtime";
+import type { AckResult, GameEvent, GuessAckData, SkipAckData } from "@/types/realtime";
 
 /**
  * One-screen ("pass and play") games. Runs the exact same GameEngine as the
@@ -37,7 +37,7 @@ export interface LocalMatchView {
   id: string;
   number: number;
   settings: GameSettings;
-  totalRounds: number;
+  totalWords: number;
   turn: TurnView | null;
   /** Keyed by GUESSER id: the other player's chain, masked to what's been revealed. */
   boards: Record<string, WordCardView[]>;
@@ -78,7 +78,7 @@ interface LocalState {
   reveal: (seat: Seat) => void;
   submitChain: (seat: Seat, words: string[]) => AckResult;
   guess: (turnId: number, guess: string) => Promise<AckResult<GuessAckData>>;
-  hint: (turnId: number, expectedRevealed: number) => Promise<AckResult<HintAckData>>;
+  skip: (turnId: number, expectedRevealed: number) => Promise<AckResult<SkipAckData>>;
   playAgain: () => void;
   backToSetup: () => void;
   quit: () => void;
@@ -196,10 +196,10 @@ export const useLocalGame = create<LocalState>()((set, get) => {
       });
     },
 
-    async hint(turnId, expectedRevealed) {
+    async skip(turnId, expectedRevealed) {
       return run((r, now) => {
         const guesserId = r.match?.turn?.guesserId ?? "";
-        return engine.requestHint(r, guesserId, { turnId, expectedRevealed }, now);
+        return engine.skipTurn(r, guesserId, { turnId, expectedRevealed }, now);
       });
     },
 
@@ -262,7 +262,7 @@ function toView(r: ServerRoom): LocalView {
       id: m.id,
       number: m.number,
       settings: { ...m.settings },
-      totalRounds: m.settings.chainLength - 1,
+      totalWords: hiddenWordsFor(m.settings.chainLength),
       turn: m.turn && {
         id: m.turn.id,
         round: m.turn.round,

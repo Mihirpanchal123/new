@@ -90,7 +90,7 @@ function DemoGuess() {
   );
 }
 
-function DemoHint() {
+function DemoSkip() {
   const n = useTicker(5, 900);
   const shown = Math.min(n + 1, 4);
   return (
@@ -105,29 +105,37 @@ function DemoHint() {
               h < shown ? "bg-hint-soft text-hint dark:text-hint-bright" : "bg-surface-2 text-muted",
             )}
           >
-            💡 −{SCORING.hintPenalty}
+            ⏭ −{SCORING.skipPenalty}
           </span>
         ))}
       </div>
+      <p className="text-xs font-semibold text-muted">Each skip passes the turn to your opponent.</p>
     </div>
   );
 }
 
 function DemoWin() {
-  const ladder = [0, 1, 2, 3].map((h) => ({ hints: h, pts: SCORING.basePoints - h * SCORING.hintPenalty }));
+  const n = useTicker(6, 700);
+  const racers = [
+    { name: "You", solved: Math.min(n, 4) },
+    { name: "Sam", solved: Math.min(Math.max(n - 1, 0), 3) },
+  ];
   return (
     <div className="flex flex-col items-center gap-3">
       <motion.div animate={{ rotate: [0, -8, 8, 0] }} transition={{ duration: 1.6, repeat: Infinity }}>
         <Trophy className="size-12 text-hint-bright" aria-hidden />
       </motion.div>
-      <ul className="grid grid-cols-2 gap-1.5 text-sm font-bold">
-        {ladder.map((l) => (
-          <li key={l.hints} className="rounded-lg bg-surface-2 px-3 py-1">
-            {l.hints === 0 ? "No hints" : `${l.hints} hint${l.hints > 1 ? "s" : ""}`} · <span className="text-success">+{l.pts}</span>
-          </li>
+      <div className="flex flex-col gap-1.5">
+        {racers.map((r) => (
+          <div key={r.name} className="flex items-center gap-2 text-sm font-bold">
+            <span className="w-10 text-muted">{r.name}</span>
+            {[0, 1, 2, 3].map((i) => (
+              <span key={i} className={cn("h-2 w-6 rounded-full transition-colors", i < r.solved ? "bg-success" : "bg-surface-3")} />
+            ))}
+          </div>
         ))}
-      </ul>
-      <p className="text-xs font-semibold text-muted">Plus a speed bonus. Time out = 0.</p>
+      </div>
+      <p className="text-xs font-semibold text-muted">Points are your stakes: +{SCORING.basePoints} a word, −{SCORING.skipPenalty} a skip.</p>
     </div>
   );
 }
@@ -135,9 +143,9 @@ function DemoWin() {
 const STEPS: { title: string; text: string; demo: ReactNode }[] = [
   { title: "Create 5 connected words", text: "Each word should link to the one before it. Make it fair — but not too easy.", demo: <DemoCreate /> },
   { title: "Your opponent sees the first word", text: "Every other word shows only its first letter. They know how long it is.", demo: <DemoVisible /> },
-  { title: "Guess the hidden words", text: "Take turns. The host picks the timer (or none) — wrong guesses cost a little.", demo: <DemoGuess /> },
-  { title: "Hints reveal more letters", text: "Stuck? Reveal the next letter. Each hint lowers what the word is worth.", demo: <DemoHint /> },
-  { title: "Highest score wins", text: "Four words each. Fast, clean guesses win duels.", demo: <DemoWin /> },
+  { title: "Guess the hidden words", text: "Take turns, one word at a time. Solve it and the turn passes — wrong guesses cost a little.", demo: <DemoGuess /> },
+  { title: "Stuck? Skip", text: "Skipping reveals the next letter of your word, costs points, and hands the turn over. The word waits for you.", demo: <DemoSkip /> },
+  { title: "First to crack the chain wins", text: "Solve every word before your opponent does. Spend your points on skips wisely.", demo: <DemoWin /> },
 ];
 
 export function Tutorial() {

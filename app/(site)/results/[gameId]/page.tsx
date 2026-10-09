@@ -56,7 +56,7 @@ function PlayerColumn({ player, opponent, won }: { player: MatchRecordPlayer; op
             {w.outcome === "SOLVED" ? (
               <Check className="size-4 shrink-0 text-success" strokeWidth={3} aria-label="Solved" />
             ) : (
-              <X className="size-4 shrink-0 text-danger" strokeWidth={3} aria-label={w.outcome === "TIMEOUT" ? "Timed out" : "Revealed"} />
+              <X className="size-4 shrink-0 text-danger" strokeWidth={3} aria-label="Not cracked" />
             )}
             <span className="min-w-0 flex-1 truncate font-display font-bold uppercase tracking-wide">{w.word}</span>
             <span className="hidden items-center gap-1 text-xs font-bold text-muted min-[380px]:inline-flex">

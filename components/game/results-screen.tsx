@@ -87,12 +87,17 @@ export function ResultsScreen({ room }: { room: RoomView }) {
   const myScore = match.scores[me.id] ?? 0;
   const theirScore = match.scores[opponent.id] ?? 0;
 
+  const raceWon = result.endReason === "COMPLETED" && outcome !== "draw" && (outcome === "win" ? myStats : theirStats).solved === match.totalWords;
   const forfeitNote =
     result.endReason === "FORFEIT"
       ? outcome === "win"
         ? `${opponent.displayName} left the duel — win by forfeit.`
         : "You left the duel."
-      : null;
+      : raceWon
+        ? outcome === "win"
+          ? "You cracked the whole chain first!"
+          : `${opponent.displayName} cracked the whole chain first.`
+        : "Too many timeouts in a row — settled on points.";
 
   const rematchMine = room.rematch?.requestedBy === me.id;
   const rematchTheirs = room.rematch && room.rematch.requestedBy === opponent.id;
@@ -166,8 +171,8 @@ export function ResultsScreen({ room }: { room: RoomView }) {
         </div>
 
         <div className="mt-5 divide-y divide-border border-t border-border">
-          <StatRow label="Words solved" mine={`${myStats.solved}/${match.totalRounds}`} theirs={`${theirStats.solved}/${match.totalRounds}`} better={compare(myStats.solved, theirStats.solved, true)} />
-          <StatRow label="Hints used" mine={String(myStats.hintsUsed)} theirs={String(theirStats.hintsUsed)} better={compare(myStats.hintsUsed, theirStats.hintsUsed, false)} />
+          <StatRow label="Words solved" mine={`${myStats.solved}/${match.totalWords}`} theirs={`${theirStats.solved}/${match.totalWords}`} better={compare(myStats.solved, theirStats.solved, true)} />
+          <StatRow label="Skips" mine={String(myStats.hintsUsed)} theirs={String(theirStats.hintsUsed)} better={compare(myStats.hintsUsed, theirStats.hintsUsed, false)} />
           <StatRow label="Avg. guess time" mine={formatSeconds(myStats.avgSolveMs)} theirs={formatSeconds(theirStats.avgSolveMs)} better={compare(myStats.avgSolveMs, theirStats.avgSolveMs, false)} />
           <StatRow label="Wrong guesses" mine={String(myStats.wrongGuesses)} theirs={String(theirStats.wrongGuesses)} better={compare(myStats.wrongGuesses, theirStats.wrongGuesses, false)} />
         </div>

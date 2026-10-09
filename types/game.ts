@@ -24,7 +24,8 @@ export type WordStatus =
   | "SOLVED"
   | "FAILED"; // timed out or fully revealed by hints
 
-export type TurnOutcome = "SOLVED" | "REVEALED" | "TIMEOUT";
+/** REVEALED only appears in match records from before skips replaced hints. */
+export type TurnOutcome = "SOLVED" | "SKIPPED" | "TIMEOUT" | "REVEALED";
 
 export type EndReason = "COMPLETED" | "FORFEIT";
 
@@ -96,7 +97,8 @@ export interface MatchView {
   id: string;
   number: number;
   settings: GameSettings;
-  totalRounds: number;
+  /** Words each player has to crack to win. */
+  totalWords: number;
   firstPlayerId: string;
   turn: TurnView | null;
   /** The opponent's chain, as I (the guesser) am allowed to see it. */

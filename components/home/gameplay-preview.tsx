@@ -37,9 +37,9 @@ function buildFrames(): Frame[] {
     points = points.map((p, i) => (i === pos ? pts : p));
     push({ active: pos + 1, celebrate: pos, note: { tone: "success", text: `Correct! +${pts}` }, ms: 1300 });
   };
-  const hint = (pos: number) => {
+  const skip = (pos: number) => {
     revealed = revealed.map((r, i) => (i === pos ? r + 1 : r));
-    push({ active: pos, note: { tone: "hint", text: "Hint used · −25" }, ms: 900 });
+    push({ active: pos, note: { tone: "hint", text: "Skipped · +1 letter · −25" }, ms: 900 });
   };
 
   push({ ms: 900 });
@@ -47,15 +47,15 @@ function buildFrames(): Frame[] {
   solve(1, 100);
   type("plan", 2);
   push({ active: 2, input: "PLAN", shake: true, note: { tone: "danger", text: "Not quite!" }, ms: 900 });
-  hint(2);
+  skip(2);
   type("plant", 2);
-  solve(2, 70);
+  solve(2, 95);
   type("farm", 3);
-  solve(3, 98);
-  hint(4);
-  hint(4);
+  solve(3, 108);
+  skip(4);
+  skip(4);
   type("market", 4);
-  solve(4, 50);
+  solve(4, 100);
   push({ active: 5, ms: 2200 });
   return frames;
 }
@@ -94,7 +94,7 @@ export function GameplayPreview({ className }: { className?: string }) {
       <div className="mb-3 flex items-center justify-between px-1">
         <span className="text-xs font-extrabold uppercase tracking-[0.18em] text-muted">Alex&apos;s chain</span>
         <span className="rounded-full bg-brand-soft px-2.5 py-0.5 text-xs font-extrabold text-brand">
-          Round {Math.min(frame.active, 4)}/4
+          Word {Math.min(frame.active, 4)}/4
         </span>
       </div>
       <div className="flex flex-col gap-1.5" aria-hidden>

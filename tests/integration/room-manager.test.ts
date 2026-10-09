@@ -13,7 +13,7 @@ function setup() {
     config: {
       isProduction: false,
       timings: { ...DEFAULT_TIMINGS },
-      scoring: { basePoints: 100, hintPenalty: 25, wrongGuessPenalty: 5, minCorrectPoints: 10, speedBonusMax: 20, failedPoints: 0 },
+      scoring: { basePoints: 100, skipPenalty: 25, wrongGuessPenalty: 5, minCorrectPoints: 10, speedBonusMax: 20 },
       sessionSecret: "test",
       adminToken: null,
       adminShowSecrets: false,
@@ -83,12 +83,16 @@ describe("RoomManager integration", () => {
     expect(room.phase).toBe("PLAYING");
 
     let first = true;
+    let aliceSkipped = false;
     while (room.phase === "PLAYING") {
       const turn = room.match!.turn!;
       const answer = room.match!.chains[turn.ownerId]![turn.position]!;
-      if (turn.guesserId === alice.id) {
-        // Alice: one hint then correct.
-        c.rooms.mutate(code, (r, now) => c.engine.requestHint(r, alice.id, { turnId: turn.id, expectedRevealed: 1 }, now));
+      if (turn.guesserId === alice.id && !aliceSkipped) {
+        // Alice skips her first turn…
+        aliceSkipped = true;
+        c.rooms.mutate(code, (r, now) => c.engine.skipTurn(r, alice.id, { turnId: turn.id, expectedRevealed: 1 }, now));
+      } else if (turn.guesserId === alice.id) {
+        // …then solves everything.
         c.rooms.mutate(code, (r, now) => c.engine.submitGuess(r, alice.id, { turnId: turn.id, guess: answer }, now));
       } else if (first) {
         // Bob lets his first word time out.
@@ -104,7 +108,9 @@ describe("RoomManager integration", () => {
     expect(room.phase).toBe("COMPLETE");
     const result = room.match!.result!;
     expect(result.stats[alice.id]!.solved).toBe(HIDDEN_WORDS);
-    expect(result.stats[alice.id]!.hintsUsed).toBe(HIDDEN_WORDS);
+    expect(result.stats[alice.id]!.hintsUsed).toBe(1);
+    // Alice opened, so she reaches her last word first and wins the race.
+    expect(result.winnerId).toBe(alice.id);
     expect(result.stats[bob.id]!.solved).toBe(HIDDEN_WORDS - 1);
 
     const record = c.profiles.getMatch(room.match!.id)!;

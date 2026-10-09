@@ -20,7 +20,7 @@ export interface AchievementDefinition {
 
 export const ACHIEVEMENTS: Record<AchievementId, AchievementDefinition> = {
   FIRST_WIN: { id: "FIRST_WIN", title: "First Blood", description: "Win your first duel.", icon: "trophy" },
-  NO_HINTS: { id: "NO_HINTS", title: "Mind Reader", description: "Win without using a single hint.", icon: "eye-off" },
+  NO_HINTS: { id: "NO_HINTS", title: "Mind Reader", description: "Win without skipping a turn.", icon: "eye-off" },
   PERFECT_CHAIN: { id: "PERFECT_CHAIN", title: "Perfect Chain", description: "Solve every word in a duel.", icon: "link" },
   SPEED_DEMON: { id: "SPEED_DEMON", title: "Speed Demon", description: "Solve every word, averaging under 8 seconds.", icon: "zap" },
   COMEBACK: { id: "COMEBACK", title: "Comeback Kid", description: "Win after trailing by 50+ points.", icon: "trending-up" },

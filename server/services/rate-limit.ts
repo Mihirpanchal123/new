@@ -9,7 +9,7 @@ export const RATE_RULES = {
   createRoom: { capacity: 5, refillPerSec: 5 / 60 },
   joinRoom: { capacity: 20, refillPerSec: 20 / 60 },
   guess: { capacity: 8, refillPerSec: 4 },
-  hint: { capacity: 4, refillPerSec: 2 },
+  skip: { capacity: 4, refillPerSec: 2 },
   rematch: { capacity: 6, refillPerSec: 6 / 60 },
   chain: { capacity: 15, refillPerSec: 15 / 60 },
   ready: { capacity: 20, refillPerSec: 2 },

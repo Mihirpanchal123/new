@@ -52,22 +52,26 @@ describe("one-screen game", () => {
     while (store().view!.phase === "PLAYING") {
       const turn = store().view!.match!.turn!;
       expect(turn.endsAt).toBeNull(); // untimed
-      const answer = chains[turn.ownerId]![turn.position]!;
-      const wrong = await store().guess(turn.id, "zzz");
-      expect(wrong).toMatchObject({ ok: true, data: { correct: false } });
-      const hint = await store().hint(turn.id, 1);
-      expect(hint.ok).toBe(true);
-      const right = await store().guess(turn.id, answer);
-      expect(right).toMatchObject({ ok: true, data: { correct: true } });
+      if (turns === 0) {
+        // Ana opens with a skip: one more letter, and the turn goes to Ben.
+        const skip = await store().skip(turn.id, 1);
+        expect(skip).toMatchObject({ ok: true, data: { revealedCount: 2 } });
+      } else {
+        const answer = chains[turn.ownerId]![turn.position]!;
+        const wrong = await store().guess(turn.id, "zzz");
+        expect(wrong).toMatchObject({ ok: true, data: { correct: false } });
+        const right = await store().guess(turn.id, answer);
+        expect(right).toMatchObject({ ok: true, data: { correct: true } });
+      }
       await vi.advanceTimersByTimeAsync(DEFAULT_TIMINGS.resultMs + 10);
       turns++;
     }
+    // Ana's skip cost her a turn, so Ben cracks his 3 words first.
     expect(turns).toBe(6);
     const view = store().view!;
     expect(view.phase).toBe("COMPLETE");
     expect(view.match!.result!.chains[P1.id]).toEqual(CHAIN_1);
-    // Same play on both sides → draw.
-    expect(view.match!.result!.winnerId).toBeNull();
+    expect(view.match!.result!.winnerId).toBe(P2.id);
     expect(events).toContain("game.complete");
     off();
 

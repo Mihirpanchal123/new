@@ -10,11 +10,11 @@ export const dynamic = "force-dynamic";
 const STEPS = [
   { icon: Link2, title: "Build a chain", text: "Pick 4–8 words, each one connected to the last. COFFEE → BEAN → PLANT…" },
   { icon: Eye, title: "Crack theirs", text: "You see their first word and one letter of each of the rest. Guess what comes next." },
-  { icon: Lightbulb, title: "Hint or hold", text: "Stuck? Reveal a letter — it costs points. Fastest, cleanest guesser wins." },
+  { icon: Lightbulb, title: "Solve or skip", text: "Stuck? Skip: you get a letter for 25 points and the turn passes. First to crack the chain wins." },
 ];
 
 const FEATURES = [
-  { icon: Zap, title: "Real-time duels", text: "Every guess, hint and point syncs instantly." },
+  { icon: Zap, title: "Real-time duels", text: "Every guess, skip and point syncs instantly." },
   { icon: Timer, title: "30-second turns", text: "Quick rounds keep the pressure on." },
   { icon: Users, title: "No sign-up", text: "Pick a name and avatar — you're in." },
   { icon: Smartphone, title: "Made for phones", text: "Play the whole game one-handed." },

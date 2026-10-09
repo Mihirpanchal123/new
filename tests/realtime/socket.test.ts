@@ -89,9 +89,6 @@ describe("realtime: synchronization & secrecy", () => {
     expect(wrong).toMatchObject({ ok: true, data: { correct: false } });
     await waitFor(() => latest(other).match!.turn!.recentGuesses.includes("zzzz"));
 
-    const hint = await guesser.emitWithAck("hint:request", { code, turnId: turn.id, expectedRevealed: 1, actionId: "hint-action-1" });
-    expect(hint).toMatchObject({ ok: true, data: { revealedCount: 2, letter: answer[1]!.toUpperCase() } });
-
     const right = await guesser.emitWithAck("guess:submit", { code, turnId: turn.id, guess: answer, actionId: "right-guess-1" });
     expect(right).toMatchObject({ ok: true, data: { correct: true } });
     const points = right.ok ? right.data.points : 0;
@@ -113,18 +110,19 @@ describe("realtime: duplicate events", () => {
     const { a, b, code } = await duel();
     const { guesser, turn } = guesserOf(a, b);
     const payload = { code, turnId: turn.id, expectedRevealed: 1, actionId: "same-action-id" };
-    const [r1, r2] = await Promise.all([guesser.emitWithAck("hint:request", payload), guesser.emitWithAck("hint:request", payload)]);
+    const [r1, r2] = await Promise.all([guesser.emitWithAck("turn:skip", payload), guesser.emitWithAck("turn:skip", payload)]);
     expect(r1).toEqual(r2);
     await waitFor(() => latest(guesser).match!.opponentBoard[turn.position]!.revealedCount === 2);
     expect(latest(guesser).match!.opponentBoard[turn.position]!.hintsUsed).toBe(1);
+    expect(latest(guesser).match!.scores[guesser.playerId]).toBe(-25);
   });
 
-  it("a double-clicked hint (new actionId, stale count) reveals only one letter", async () => {
+  it("a double-clicked skip (new actionId, stale count) reveals only one letter", async () => {
     const { a, b, code } = await duel();
     const { guesser, turn } = guesserOf(a, b);
     const [r1, r2] = await Promise.all([
-      guesser.emitWithAck("hint:request", { code, turnId: turn.id, expectedRevealed: 1, actionId: "dbl-click-1" }),
-      guesser.emitWithAck("hint:request", { code, turnId: turn.id, expectedRevealed: 1, actionId: "dbl-click-2" }),
+      guesser.emitWithAck("turn:skip", { code, turnId: turn.id, expectedRevealed: 1, actionId: "dbl-click-1" }),
+      guesser.emitWithAck("turn:skip", { code, turnId: turn.id, expectedRevealed: 1, actionId: "dbl-click-2" }),
     ]);
     expect([r1.ok, r2.ok].sort()).toEqual([false, true]);
     expect([r1, r2].find((r) => !r.ok)).toMatchObject({ error: "STALE" });
@@ -220,7 +218,7 @@ describe("realtime: game settings", () => {
     expect((await a.emitWithAck("chain:submit", { code, words: ALICE_CHAIN.slice(0, 4) })).ok).toBe(true);
     expect((await b.emitWithAck("chain:submit", { code, words: BOB_CHAIN.slice(0, 4) })).ok).toBe(true);
     await waitFor(() => latest(a).phase === "PLAYING");
-    expect(latest(a).match!.totalRounds).toBe(3);
+    expect(latest(a).match!.totalWords).toBe(3);
     expect(latest(a).match!.turn!.endsAt).not.toBeNull();
   });
 });

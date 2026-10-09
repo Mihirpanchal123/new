@@ -16,12 +16,13 @@ describe("serializeRoomFor — secret protection", () => {
     }
   });
 
-  it("shows exactly the revealed letters of the active word", () => {
+  it("shows exactly the revealed letters of a skipped word, which stays secret", () => {
     const { engine, room, now } = playingRoom();
     const turn = currentTurn(room);
-    engine.requestHint(room, turn.guesserId, { turnId: turn.id, expectedRevealed: 1 }, now);
+    engine.skipTurn(room, turn.guesserId, { turnId: turn.id, expectedRevealed: 1 }, now);
     const view = serializeRoomFor(room, turn.guesserId, opts);
     const card = view.match!.opponentBoard[1]!;
+    expect(card.status).toBe("ACTIVE");
     expect(card.letters.filter((l) => l !== null)).toHaveLength(2);
     expect(card.letters.slice(2).every((l) => l === null)).toBe(true);
   });

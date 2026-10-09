@@ -9,7 +9,7 @@ import { GameStatus } from "../game/game-status";
 import { GuessBar, type GuessActions } from "../game/guess-bar";
 import { useGameEvents } from "../game/hooks/use-game-events";
 import { PlayerHeader } from "../game/player-header";
-import { RoundIndicator, Timer } from "../game/timer";
+import { RaceProgress, solvedCount, Timer } from "../game/timer";
 import { WordChain, type Celebration } from "../game/word-chain";
 import { PlayerAvatar } from "../player/player-avatar";
 import { Button } from "../ui/button";
@@ -28,9 +28,9 @@ export function LocalBoard({ view }: { view: LocalView }) {
   const nameOf = (id: string) => view.players.find((p) => p.id === id)?.displayName ?? "Player";
 
   const guess = useLocalGame((s) => s.guess);
-  const hint = useLocalGame((s) => s.hint);
+  const skip = useLocalGame((s) => s.skip);
   const quit = useLocalGame((s) => s.quit);
-  const actions = useMemo<GuessActions>(() => ({ guess, hint }), [guess, hint]);
+  const actions = useMemo<GuessActions>(() => ({ guess, skip }), [guess, skip]);
 
   // Mobile shows one chain; it follows the turn, and players can peek at the other.
   const [viewing, setViewing] = useState(guesser.id);
@@ -105,7 +105,10 @@ export function LocalBoard({ view }: { view: LocalView }) {
         </div>
         <PlayerHeader me={p1} opponent={p2} scores={match.scores} activeId={turn?.guesserId ?? null} showYou={false} />
         <div className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-surface/70 px-3 py-2 backdrop-blur">
-          <RoundIndicator round={turn?.round ?? match.totalRounds} total={match.totalRounds} />
+          <RaceProgress
+            total={match.totalWords}
+            racers={view.players.map((p) => ({ name: p.displayName, solved: solvedCount(match.boards[p.id] ?? []) }))}
+          />
           <Timer
             endsAt={turn?.phase === "GUESSING" ? turn.endsAt : null}
             durationMs={match.settings.turnMs ?? 0}

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_TIMINGS } from "@/constants/game";
-import { totalTurns } from "@/server/game/engine";
+import { DEFAULT_TIMINGS, MAX_IDLE_TURNS } from "@/constants/game";
+import { SCORING } from "@/constants/scoring";
 import { GameError } from "@/server/game/errors";
 import { canTransition, TRANSITIONS } from "@/server/game/state-machine";
 import { ALICE, ALICE_CHAIN, BOB, BOB_CHAIN, currentTurn, makeEngine, playingRoom } from "../helpers/engine";
@@ -77,27 +77,46 @@ describe("lobby and setup", () => {
 });
 
 describe("turns", () => {
-  it("alternates guessers and positions", () => {
-    const { engine, room, now } = playingRoom();
+  /** Let the current turn time out and move on to the next one. */
+  function timeOut(engine: ReturnType<typeof makeEngine>, room: ReturnType<typeof playingRoom>["room"]) {
+    const turn = currentTurn(room);
+    engine.tick(room, turn.endsAt! + DEFAULT_TIMINGS.latencyGraceMs + 1);
+    engine.tick(room, turn.resultEndsAt!);
+  }
+
+  it("alternates guessers; a timed-out word stays with its guesser, no penalty", () => {
+    const { engine, room } = playingRoom();
     const order = room.match!.order;
-    let t = now;
     const seen: Array<[string, number]> = [];
-    for (let i = 0; i < totalTurns(5); i++) {
+    for (let i = 0; i < 4; i++) {
       const turn = currentTurn(room);
       seen.push([turn.guesserId, turn.position]);
-      t = turn.endsAt! + DEFAULT_TIMINGS.latencyGraceMs + 1;
-      engine.tick(room, t); // timeout
-      t = currentTurn(room)?.resultEndsAt ?? t;
-      engine.tick(room, t); // next turn
+      timeOut(engine, room);
     }
     expect(seen).toEqual([
       [order[0], 1], [order[1], 1],
-      [order[0], 2], [order[1], 2],
-      [order[0], 3], [order[1], 3],
-      [order[0], 4], [order[1], 4],
+      [order[0], 1], [order[1], 1],
     ]);
+    expect(room.match!.scores).toEqual({ [ALICE.id]: 0, [BOB.id]: 0 });
+    expect(room.match!.boards[order[0]]![1]!.revealed).toBe(1);
+  });
+
+  it("passes the turn after a solve, and the solver moves on to their next word", () => {
+    const { engine, room, now } = playingRoom();
+    const first = currentTurn(room);
+    const answer = room.match!.chains[first.ownerId]![1]!;
+    engine.submitGuess(room, first.guesserId, { turnId: first.id, guess: answer }, now);
+    engine.tick(room, first.resultEndsAt!);
+    expect(currentTurn(room).guesserId).toBe(first.ownerId);
+    timeOut(engine, room);
+    expect(currentTurn(room)).toMatchObject({ guesserId: first.guesserId, position: 2 });
+  });
+
+  it("settles an idle game on points after too many timeouts in a row", () => {
+    const { engine, room } = playingRoom();
+    for (let i = 0; i < MAX_IDLE_TURNS; i++) timeOut(engine, room);
     expect(room.phase).toBe("COMPLETE");
-    expect(room.match!.result!.winnerId).toBeNull(); // 0 – 0 draw
+    expect(room.match!.result).toMatchObject({ endReason: "COMPLETED", winnerId: null });
   });
 
   it("scores a correct guess and enters the result phase", () => {
@@ -140,37 +159,53 @@ describe("turns", () => {
     expect(res.data.correct).toBe(true);
   });
 
-  it("reveals one letter per hint and fails the word when fully revealed", () => {
+  it("a skip reveals one letter, costs points and passes the turn — the word waits", () => {
     const { engine, room, now } = playingRoom();
     const turn = currentTurn(room);
-    const answer = room.match!.chains[turn.ownerId]![1]!; // "bean" or "cloud"
-    let revealed = 1;
-    while (revealed < answer.length - 1) {
-      const res = engine.requestHint(room, turn.guesserId, { turnId: turn.id, expectedRevealed: revealed }, now);
-      expect(res.data.letter).toBe(answer[revealed]!.toUpperCase());
-      revealed++;
-    }
-    engine.requestHint(room, turn.guesserId, { turnId: turn.id, expectedRevealed: revealed }, now);
+    const answer = room.match!.chains[turn.ownerId]![1]!;
+    const res = engine.skipTurn(room, turn.guesserId, { turnId: turn.id, expectedRevealed: 1 }, now);
+    expect(res.data).toEqual({ revealedCount: 2, letter: answer[1]!.toUpperCase() });
+    expect(res.events.map((e) => e.type)).toEqual(["hint.revealed", "turn.complete", "score.updated"]);
+    // The answer must not travel with a skip — both players receive this event.
+    expect(res.events.find((e) => e.type === "turn.complete")).toMatchObject({ outcome: "SKIPPED", word: null, points: -SCORING.skipPenalty });
     expect(turn.phase).toBe("RESULT");
-    expect(turn.outcome).toBe("REVEALED");
-    expect(room.match!.scores[turn.guesserId]).toBe(0);
+    expect(room.match!.scores[turn.guesserId]).toBe(-SCORING.skipPenalty);
+
+    engine.tick(room, turn.resultEndsAt!);
+    expect(currentTurn(room).guesserId).toBe(turn.ownerId);
+    timeOut(engine, room);
+    // Back to the skipper, same word, one more letter showing.
+    expect(currentTurn(room)).toMatchObject({ guesserId: turn.guesserId, position: 1 });
+    expect(room.match!.boards[turn.guesserId]![1]!).toMatchObject({ status: "ACTIVE", revealed: 2, hints: 1 });
   });
 
-  it("rejects a duplicate hint request", () => {
+  it("rejects a duplicate skip", () => {
     const { engine, room, now } = playingRoom();
     const turn = currentTurn(room);
-    engine.requestHint(room, turn.guesserId, { turnId: turn.id, expectedRevealed: 1 }, now);
-    expectCode(() => engine.requestHint(room, turn.guesserId, { turnId: turn.id, expectedRevealed: 1 }, now), "STALE");
+    engine.skipTurn(room, turn.guesserId, { turnId: turn.id, expectedRevealed: 1 }, now);
+    expectCode(() => engine.skipTurn(room, turn.guesserId, { turnId: turn.id, expectedRevealed: 1 }, now), "STALE");
     expect(room.match!.boards[turn.guesserId]![1]!.revealed).toBe(2);
+    expect(room.match!.scores[turn.guesserId]).toBe(-SCORING.skipPenalty);
   });
 
-  it("gives 75 points for a correct guess after one hint", () => {
+  it("can't skip once every letter is showing", () => {
+    const { engine, room } = playingRoom();
+    const word = room.match!.boards[currentTurn(room).guesserId]![1]!;
+    word.revealed = word.answer.length;
+    const turn = currentTurn(room);
+    expectCode(() => engine.skipTurn(room, turn.guesserId, { turnId: turn.id, expectedRevealed: word.revealed }, turn.startedAt), "INVALID_STATE");
+  });
+
+  it("a solve after skips is worth full points — the skips were already paid for", () => {
     const { engine, room } = playingRoom();
     const turn = currentTurn(room);
-    const late = turn.endsAt!; // no speed bonus
-    engine.requestHint(room, turn.guesserId, { turnId: turn.id, expectedRevealed: 1 }, late);
-    const answer = room.match!.chains[turn.ownerId]![1]!;
-    expect(engine.submitGuess(room, turn.guesserId, { turnId: turn.id, guess: answer }, late).data.points).toBe(75);
+    engine.skipTurn(room, turn.guesserId, { turnId: turn.id, expectedRevealed: 1 }, turn.startedAt);
+    engine.tick(room, turn.resultEndsAt!);
+    timeOut(engine, room);
+    const back = currentTurn(room);
+    const answer = room.match!.chains[back.ownerId]![1]!;
+    expect(engine.submitGuess(room, back.guesserId, { turnId: back.id, guess: answer }, back.endsAt!).data.points).toBe(100);
+    expect(room.match!.scores[back.guesserId]).toBe(100 - SCORING.skipPenalty);
   });
 });
 
@@ -187,17 +222,34 @@ describe("completion, forfeit and rematch", () => {
     return t;
   }
 
-  it("completes after every word and computes stats", () => {
+  it("the first to crack the whole chain wins and the rest are marked missed", () => {
     const { engine, room, now } = playingRoom();
+    const [starter, second] = room.match!.order;
     solveAll(engine, room, now);
     expect(room.phase).toBe("COMPLETE");
     const result = room.match!.result!;
     expect(result.endReason).toBe("COMPLETED");
-    for (const id of [ALICE.id, BOB.id]) {
-      expect(result.stats[id]!.solved).toBe(4);
-      expect(result.stats[id]!.score).toBe(400);
+    expect(result.winnerId).toBe(starter);
+    expect(result.stats[starter]).toMatchObject({ solved: 4, failed: 0, score: 400 });
+    expect(result.stats[second]).toMatchObject({ solved: 3, failed: 1, score: 300 });
+  });
+
+  it("finishing first beats a higher score", () => {
+    const { engine, room } = playingRoom();
+    const [starter, second] = room.match!.order;
+    // The starter skips a lot and falls far behind on points…
+    room.match!.scores[starter] = -500;
+    let guard = 0;
+    while (room.phase === "PLAYING" && guard++ < 50) {
+      const turn = currentTurn(room);
+      const answer = room.match!.chains[turn.ownerId]![turn.position]!;
+      // …while the second player only ever times out.
+      if (turn.guesserId === starter) engine.submitGuess(room, starter, { turnId: turn.id, guess: answer }, turn.endsAt!);
+      else engine.tick(room, turn.endsAt! + DEFAULT_TIMINGS.latencyGraceMs + 1);
+      engine.tick(room, currentTurn(room).resultEndsAt!);
     }
-    expect(result.winnerId).toBeNull();
+    expect(room.match!.result!.winnerId).toBe(starter);
+    expect(room.match!.scores[starter]).toBeLessThan(room.match!.scores[second]!);
   });
 
   it("forfeits a player who stays disconnected past the grace period", () => {

@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import { DEFAULT_TIMINGS, type GameSettings } from "@/constants/game";
 import { settingsSchema } from "@/lib/validation/schemas";
 import { checkChain } from "@/lib/validation/words";
-import { totalTurns } from "@/server/game/engine";
 import { GameError } from "@/server/game/errors";
 import { serializeRoomFor } from "@/server/game/serialize";
 import { ALICE, BOB, currentTurn, makeEngine } from "../helpers/engine";
@@ -83,7 +82,7 @@ describe("lobby settings", () => {
 });
 
 describe("chain length", () => {
-  it.each([4, 6, 8])("a %i-word game has each player guess every hidden word once", (chainLength) => {
+  it.each([4, 6, 8])("a %i-word game is won by cracking every hidden word", (chainLength) => {
     const { engine, room } = startGame({ chainLength, turnMs: 30_000 });
     expect(room.match!.boards[ALICE.id]).toHaveLength(chainLength);
     let turns = 0;
@@ -96,10 +95,13 @@ describe("chain length", () => {
       engine.tick(room, t);
       turns++;
     }
-    expect(turns).toBe(totalTurns(chainLength));
-    expect(room.match!.result!.stats[ALICE.id]!.solved).toBe(chainLength - 1);
+    // Both solve every turn, so the opener finishes one turn ahead.
+    expect(turns).toBe(2 * (chainLength - 1) - 1);
+    const result = room.match!.result!;
+    expect(result.winnerId).toBe(room.match!.order[0]);
+    expect(result.stats[room.match!.order[0]]!.solved).toBe(chainLength - 1);
     const view = serializeRoomFor(room, ALICE.id, { now: t, countdownDurationMs: 0, graceMs: 0 });
-    expect(view.match!.totalRounds).toBe(chainLength - 1);
+    expect(view.match!.totalWords).toBe(chainLength - 1);
     expect(view.match!.settings.chainLength).toBe(chainLength);
   });
 });

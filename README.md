@@ -2,7 +2,7 @@
 
 **Think alike. Guess faster.**
 
-A realtime, two-player word game. Each player builds a chain of connected words (4–8, chosen per game) (COFFEE → BEAN → PLANT → FARM → MARKET). Players then take turns cracking each other's chain: the first word is visible, and the rest show only their first letter. Hints reveal more letters, but each one lowers the word's value. Highest score wins.
+A realtime, two-player word game. Each player builds a chain of connected words (4–8, chosen per game) (COFFEE → BEAN → PLANT → FARM → MARKET). Players then take turns cracking each other's chain: the first word is visible, and the rest show only their first letter. Stuck? Skip: it reveals one more letter, costs 25 points and passes the turn — the word waits for you. The first player to crack the whole chain wins, whatever the score.
 
 Mobile-first, guest-friendly (no sign-up), server-authoritative, and **no database required**.
 
@@ -17,8 +17,8 @@ Mobile-first, guest-friendly (no sign-up), server-authoritative, and **no databa
 - **One-screen mode** (`/local`): two players share one device. Each writes their chain behind a "pass the device" screen, then they alternate guesses. Both chains are only ever shown masked, so nothing secret appears on the shared screen. It runs the same `GameEngine` in the browser, survives a refresh, and is not recorded to profiles or the leaderboard.
 - **Chain builder**: step indicator, live validation, example chains, lock/edit, and a draft that survives a refresh.
 - **"3 · 2 · 1 · DUEL!"** countdown, synced to the server clock.
-- **Game board**: alternating turns (one round per hidden word), flip-in letter tiles, hints with a tap-twice confirm before revealing the last letter, wrong-guess shake, particle bursts, a floating "+points" and animated score counters. While your opponent guesses, you watch their wrong attempts live.
-- **Scoring**: 100 / 75 / 50 / 25 by hints used, −5 per distinct wrong guess (floor of 10), a speed bonus of up to +20 (timed games only), and 0 for a timeout or a fully revealed word. All values are configurable.
+- **Game board**: alternating turns (solve, skip or time out and the turn passes), a race tracker showing who's cracked how many words, flip-in letter tiles, wrong-guess shake, particle bursts, a floating "+points" and animated score counters. While your opponent guesses, you watch their wrong attempts live.
+- **Scoring**: 100 per solved word, −5 per distinct wrong guess (floor of 10), a speed bonus of up to +20 (timed games only), and −25 per skip (scores can go negative). Points are the stakes, not the win condition: first to crack the chain wins. All values are configurable.
 - **Disconnects**: the opponent sees a reconnect countdown, a refresh restores the exact state, and a forfeit happens after the grace period. A second tab takes over the session cleanly.
 - **Results**: win, loss or draw screen, both chains revealed, stat comparison, rematch (request / accept / decline / cancel), sharing, and a permanent match recap page.
 - **Profile**: stats, recent matches, and 8 achievements (locked and unlocked states).
@@ -126,12 +126,12 @@ LOBBY ──both ready──▶ SETUP ──both chains locked──▶ COUNTDOW
 any ──▶ CLOSED (empty, abandoned, expired)
 ```
 
-Inside `PLAYING`, each turn ((words − 1) rounds × 2 players, alternating) goes `GUESSING` (the room’s timer, or open-ended when untimed) → `RESULT` (~2.6s) → next turn. The first guesser alternates between rematches.
+Inside `PLAYING`, turns alternate between the players. Each goes `GUESSING` (the room’s timer, or open-ended when untimed) → `RESULT` (~2.6s) → the other player's turn, whether it ended in a solve, a skip or a timeout. The match ends as soon as someone solves their last word, or — if `MAX_IDLE_TURNS` turns in a row time out — on points. The first guesser alternates between rematches.
 
 ### Realtime model
 
 - **Snapshots are the truth.** After every change the server pushes a per-viewer `room:state` with a monotonic `version`. Clients ignore older versions, so stale or out-of-order packets can't corrupt state.
-- **Events are for feel.** `game:event` (a typed discriminated union: `guess.result`, `hint.revealed`, `turn.timeout`, `player.disconnected`, `rematch.requested`, …) drives sounds, animations and toasts only.
+- **Events are for feel.** `game:event` (a typed discriminated union: `guess.result`, `hint.revealed` (a skip's letter), `turn.timeout`, `player.disconnected`, `rematch.requested`, …) drives sounds, animations and toasts only.
 - **Commands are intents.** The client sends `guess:submit { turnId, guess, actionId }`, never scores, timers or indices. Every command is acked with a typed `AckResult`.
 - **Reconnect.** On every (re)connect the client re-joins, which is a reconnect for existing members, and receives a full snapshot. A clock-ping exchange estimates the server offset for smooth countdowns.
 
@@ -140,9 +140,9 @@ Inside `PLAYING`, each turn ((words − 1) rounds × 2 players, alternating) goe
 - **Secrets never leave the server early.** `serializeRoomFor()` sends the opponent's words as `letters: (string | null)[]` with exactly the revealed letters. Tests assert that no packet ever contains a hidden word.
 - **Identity.** Guest sessions are an HMAC-signed `playerId` in an httpOnly cookie, checked on every socket handshake.
 - **Validation.** Every payload is parsed with Zod. Words are normalized, restricted to letters, length-limited, profanity-filtered and de-duplicated on the server.
-- **Authority.** Turn ownership, the timer (with a 400ms latency grace), hint counts, scores and winners are all computed by the engine.
-- **Duplicates.** Retries with the same `actionId` return the cached result (registered synchronously, so even same-tick duplicates are safe). Hints carry `expectedRevealed`, so double-clicks reveal one letter.
-- **Abuse.** Token-bucket rate limits cover create, join, guess, hint, rematch, chain, profile and session. Suspicious activity (invalid payloads, wrong-turn attempts, rate limiting, failed admin logins) is logged and shown in `/admin`.
+- **Authority.** Turn ownership, the timer (with a 400ms latency grace), skip counts, scores and winners are all computed by the engine.
+- **Duplicates.** Retries with the same `actionId` return the cached result (registered synchronously, so even same-tick duplicates are safe). Skips carry `expectedRevealed`, so double-clicks reveal one letter.
+- **Abuse.** Token-bucket rate limits cover create, join, guess, skip, rematch, chain, profile and session. Suspicious activity (invalid payloads, wrong-turn attempts, rate limiting, failed admin logins) is logged and shown in `/admin`.
 - **Atomicity.** Node is single-threaded and every engine action is synchronous, so a guess, its score update and the turn transition apply atomically with respect to timers and the other player.
 
 ### Persistence (no database)

@@ -72,15 +72,14 @@ for (let i = 0; i < 24; i++) {
     const turn = room.match!.turn!;
     const skill = turn.guesserId === a.id ? a.skill : b.skill;
     const answer = room.match!.chains[turn.ownerId]![turn.position]!;
-    let t = turn.startedAt + 2_000 + Math.floor(rand() * 10_000);
-    let revealed = 1;
-    while (rand() > skill && revealed < answer.length - 1) {
-      engine.requestHint(room, turn.guesserId, { turnId: turn.id, expectedRevealed: revealed++ }, t);
-      t += 1_500;
-    }
-    if (rand() < skill + 0.15) {
+    const word = room.match!.boards[turn.guesserId]![turn.position]!;
+    const t = turn.startedAt + 2_000 + Math.floor(rand() * 10_000);
+    // Each letter already showing makes the word easier.
+    if (rand() < skill + word.revealed * 0.1) {
       if (rand() > skill) engine.submitGuess(room, turn.guesserId, { turnId: turn.id, guess: "nope" }, t);
       engine.submitGuess(room, turn.guesserId, { turnId: turn.id, guess: answer }, t + 500);
+    } else if (rand() < 0.7 && word.revealed < answer.length) {
+      engine.skipTurn(room, turn.guesserId, { turnId: turn.id, expectedRevealed: word.revealed }, t);
     } else {
       engine.tick(room, turn.endsAt! + DEFAULT_TIMINGS.latencyGraceMs + 1);
     }

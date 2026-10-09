@@ -273,18 +273,16 @@ export function attachRealtime(io: GameServer, c: Container) {
     );
 
     socket.on(
-      "hint:request",
+      "turn:skip",
       handle(
-        payloadSchemas.hint,
-        "hint",
+        payloadSchemas.skip,
+        "skip",
         ({ code, turnId, expectedRevealed }) => {
-          const result = rooms.mutate(code, (r, now) =>
-            c.engine.requestHint(r, playerId, { turnId, expectedRevealed }, now),
-          );
-          analytics.track("hint_used", { code });
+          const result = rooms.mutate(code, (r, now) => c.engine.skipTurn(r, playerId, { turnId, expectedRevealed }, now));
+          analytics.track("turn_skipped", { code });
           return result;
         },
-        { idempotencyKey: (i) => `hint:${i.actionId}` },
+        { idempotencyKey: (i) => `skip:${i.actionId}` },
       ),
     );
 

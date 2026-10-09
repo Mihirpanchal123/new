@@ -37,9 +37,10 @@ test("one-screen game: two players on one device", async ({ page }) => {
   // Hidden words are never on screen during play.
   await expect(page.getByText(/^(bean|plant|farm|cloud|water|river)$/i)).toHaveCount(0);
 
-  // Ana cracks Ben's chain first, then they alternate.
+  // Ana goes first and they alternate; she cracks her third word first and wins the race.
   for (let round = 1; round <= 3; round++) {
     for (const [name, chain] of [["Ana", CHAIN_BEN], ["Ben", CHAIN_ANA]] as const) {
+      if (round === 3 && name === "Ben") break;
       await expect(page.getByText(`${name}'s turn — crack word ${round + 1}`)).toBeVisible({ timeout: 15_000 });
       await expect(input).toBeEnabled();
       await input.fill(chain[round]!);

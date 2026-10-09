@@ -1,6 +1,6 @@
 /**
  * Words per chain, chosen per game. The first word is always visible; the
- * rest are guessed one per round, so a chain of N words plays N − 1 rounds.
+ * other N − 1 are the race: first player to crack them all wins.
  */
 export const MIN_CHAIN_LENGTH = 4;
 export const MAX_CHAIN_LENGTH = 8;
@@ -19,8 +19,11 @@ export interface GameSettings {
   turnMs: number | null;
 }
 
-/** Rounds in a game = hidden words per chain. */
-export const roundsFor = (chainLength: number) => chainLength - 1;
+/** Words each player has to crack = every word but the visible first one. */
+export const hiddenWordsFor = (chainLength: number) => chainLength - 1;
+
+/** Consecutive timed-out turns (across both players) before an idle game is settled on points. */
+export const MAX_IDLE_TURNS = 6;
 
 export function describeSettings(s: GameSettings): string {
   return `${s.chainLength} words · ${s.turnMs === null ? "no timer" : `${Math.round(s.turnMs / 1000)}s turns`}`;

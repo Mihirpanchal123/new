@@ -7,6 +7,7 @@ import { DEFAULT_TIMINGS } from "@/constants/game";
 import { haptics } from "@/lib/haptics";
 import { sound } from "@/lib/sound/sound-manager";
 import { cn, formatClock } from "@/lib/utils";
+import type { WordCardView } from "@/types/game";
 import { useCountdown } from "./hooks/use-server-clock";
 
 const R = 22;
@@ -93,26 +94,36 @@ export function Timer({
   );
 }
 
-export function RoundIndicator({ round, total }: { round: number; total: number }) {
+export const solvedCount = (cards: WordCardView[]) => cards.filter((c) => c.status === "SOLVED").length;
+
+export interface Racer {
+  name: string;
+  solved: number;
+}
+
+/** Who's closer to cracking the whole chain. First to `total` wins. */
+export function RaceProgress({ racers, total }: { racers: Racer[]; total: number }) {
   return (
-    <div className="flex flex-col items-center gap-1.5">
-      <span className="font-display text-sm font-bold uppercase tracking-[0.18em] text-muted">
-        Round <span className="text-ink tabular">{round}</span>
-        <span className="text-muted/70"> / {total}</span>
-      </span>
-      <div className="flex gap-1" aria-hidden>
-        {Array.from({ length: total }, (_, i) => (
-          <motion.span
-            key={i}
-            className="h-1.5 rounded-full"
-            animate={{
-              width: i + 1 === round ? 22 : 8,
-              backgroundColor: i + 1 <= round ? "var(--brand)" : "var(--surface-3)",
-            }}
-            transition={{ type: "spring", stiffness: 400, damping: 30 }}
-          />
-        ))}
-      </div>
+    <div className="flex min-w-0 flex-col gap-1" aria-label="Words cracked">
+      {racers.map((r) => (
+        <div key={r.name} className="flex min-w-0 items-center gap-2 text-xs font-bold">
+          <span className="w-16 truncate text-muted sm:w-20">{r.name}</span>
+          <div className="flex gap-1" aria-hidden>
+            {Array.from({ length: total }, (_, i) => (
+              <motion.span
+                key={i}
+                className="h-1.5 w-4 rounded-full sm:w-5"
+                animate={{ backgroundColor: i < r.solved ? "var(--success)" : "var(--surface-3)" }}
+                transition={{ type: "spring", stiffness: 400, damping: 30 }}
+              />
+            ))}
+          </div>
+          <span className="tabular text-ink">
+            {r.solved}
+            <span className="text-muted/70">/{total}</span>
+          </span>
+        </div>
+      ))}
     </div>
   );
 }

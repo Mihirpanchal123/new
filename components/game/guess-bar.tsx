@@ -1,6 +1,6 @@
 "use client";
 
-import { Eye, Lightbulb, Send } from "lucide-react";
+import { Eye, Send, SkipForward } from "lucide-react";
 import { AnimatePresence, motion, useAnimate } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import { GUESS_MAX_LENGTH } from "@/constants/game";
@@ -9,24 +9,24 @@ import { potentialPoints } from "@/lib/game/scoring";
 import { command } from "@/lib/realtime/client";
 import { cn, newActionId } from "@/lib/utils";
 import type { TurnView, WordCardView } from "@/types/game";
-import type { AckResult, GuessAckData, HintAckData } from "@/types/realtime";
+import type { AckResult, GuessAckData, SkipAckData } from "@/types/realtime";
 import { Button } from "../ui/button";
 
 export interface GuessActions {
   guess(turnId: number, guess: string): Promise<AckResult<GuessAckData>>;
-  hint(turnId: number, expectedRevealed: number): Promise<AckResult<HintAckData>>;
+  skip(turnId: number, expectedRevealed: number): Promise<AckResult<SkipAckData>>;
 }
 
 export function onlineGuessActions(code: string): GuessActions {
   return {
     guess: (turnId, guess) => command("guess:submit", { code, turnId, guess, actionId: newActionId() }),
-    hint: (turnId, expectedRevealed) => command("hint:request", { code, turnId, expectedRevealed, actionId: newActionId() }),
+    skip: (turnId, expectedRevealed) => command("turn:skip", { code, turnId, expectedRevealed, actionId: newActionId() }),
   };
 }
 
 type Feedback = { tone: "danger" | "success" | "hint" | "muted"; text: string; key: number } | null;
 
-/** GuessInput + HintButton, as one sticky, thumb-friendly action bar. */
+/** GuessInput + SkipButton, as one sticky, thumb-friendly action bar. */
 export function GuessBar({
   actions,
   turn,
@@ -44,9 +44,8 @@ export function GuessBar({
   guesserName?: string;
 }) {
   const [value, setValue] = useState("");
-  const [pending, setPending] = useState<"guess" | "hint" | null>(null);
+  const [pending, setPending] = useState<"guess" | "skip" | null>(null);
   const [feedback, setFeedback] = useState<Feedback>(null);
-  const [confirmReveal, setConfirmReveal] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const [scope, animate] = useAnimate<HTMLDivElement>();
 
@@ -58,7 +57,6 @@ export function GuessBar({
   if (seenTurn !== turnId) {
     setSeenTurn(turnId);
     setValue("");
-    setConfirmReveal(false);
     setFeedback(null);
   }
   // …and focus the input so you can type immediately.
@@ -71,12 +69,6 @@ export function GuessBar({
     const id = window.setTimeout(() => setFeedback(null), 1800);
     return () => window.clearTimeout(id);
   }, [feedback]);
-
-  useEffect(() => {
-    if (!confirmReveal) return;
-    const id = window.setTimeout(() => setConfirmReveal(false), 3500);
-    return () => window.clearTimeout(id);
-  }, [confirmReveal]);
 
   const say = (tone: NonNullable<Feedback>["tone"], text: string) => setFeedback({ tone, text, key: Date.now() });
   const shake = () => {
@@ -109,26 +101,17 @@ export function GuessBar({
     }
   }
 
-  async function requestHint() {
+  async function skip() {
     if (!guessing || !turn || !card || pending) return;
-    const revealsWholeWord = card.revealedCount + 1 >= card.length;
-    if (revealsWholeWord && !confirmReveal) {
-      setConfirmReveal(true);
-      return;
-    }
-    setConfirmReveal(false);
-    setPending("hint");
-    const res = await actions.hint(turn.id, card.revealedCount);
+    setPending("skip");
+    const res = await actions.skip(turn.id, card.revealedCount);
     setPending(null);
-    if (res.ok) {
-      say("hint", res.data.exhausted ? "Word revealed — 0 pts" : `Hint used · −${SCORING.hintPenalty}`);
-    } else if (res.error !== "STALE") {
-      say("muted", res.message);
-    }
-    inputRef.current?.focus({ preventScroll: true });
+    // On success the turn has passed; the bar switches to the opponent's view.
+    if (!res.ok && res.error !== "STALE") say("muted", res.message);
   }
 
-  const worth = card ? potentialPoints(card.hintsUsed, card.wrongGuesses) : SCORING.basePoints;
+  const worth = card ? potentialPoints(card.wrongGuesses) : SCORING.basePoints;
+  const nothingLeftToReveal = !!card && card.revealedCount >= card.length;
 
   if (!isMyTurn || !turn) {
     return (
@@ -169,7 +152,7 @@ export function GuessBar({
                   Worth up to <span className="text-ink">{worth}</span> pts
                 </>
               ) : (
-                "Nice — next word coming up"
+                "Switching turns…"
               )}
             </motion.span>
           )}
@@ -224,19 +207,21 @@ export function GuessBar({
       </form>
 
       <Button
-        variant={confirmReveal ? "danger" : "hint"}
+        variant="hint"
         size="md"
         className="w-full"
-        onClick={() => void requestHint()}
-        disabled={!guessing || !card}
-        loading={pending === "hint"}
-        aria-describedby="hint-cost"
+        onClick={() => void skip()}
+        disabled={!guessing || !card || nothingLeftToReveal}
+        loading={pending === "skip"}
+        aria-describedby="skip-cost"
       >
-        <Lightbulb className="size-5" aria-hidden />
-        {confirmReveal ? "Tap again to reveal the whole word" : "Reveal letter"}
-        <span id="hint-cost" className="ml-auto rounded-lg bg-black/5 px-2 py-0.5 text-sm dark:bg-white/10">
-          {confirmReveal ? "0 pts" : `−${SCORING.hintPenalty} pts`}
-        </span>
+        <SkipForward className="size-5" aria-hidden />
+        {nothingLeftToReveal ? "Every letter is showing — type it!" : "Skip · reveal a letter"}
+        {!nothingLeftToReveal && (
+          <span id="skip-cost" className="ml-auto rounded-lg bg-black/5 px-2 py-0.5 text-sm dark:bg-white/10">
+            −{SCORING.skipPenalty} pts
+          </span>
+        )}
       </Button>
     </div>
   );

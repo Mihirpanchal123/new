@@ -71,6 +71,8 @@ export interface ServerMatch {
   order: [string, string];
   turnSeq: number;
   turn: ServerTurn | null;
+  /** Consecutive timed-out turns; resets on any solve or skip. */
+  idleTurns: number;
   /** Keyed by GUESSER id: the opponent's chain they are working through. */
   boards: Record<string, BoardWord[]>;
   /** Keyed by OWNER id. SECRET. */
